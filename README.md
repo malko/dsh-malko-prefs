@@ -1,5 +1,12 @@
 # dsh-malko-prefs
 
+> **Vibe coded.** This plugin was written almost entirely by an AI assistant
+> (OpenCode, `deepseek-v4.1-flash`) from natural-language prompts, with light
+> human review and testing. It is not a carefully hand-engineered product:
+> read the code before trusting it, expect rough edges, and check what it
+> changes in your dsh profile — in particular it **restates your agent presets**
+> (see [Install](#install)). Use at your own risk.
+
 Personal preferences for DeepSeek Harness (dsh): a **tunable companion to the
 official compaction engine** and a **llama.cpp model enrichment** for the Models
 page, packaged as a single dsh bundle.
