@@ -1,0 +1,8 @@
+node_modules/
+lib/*.map
+*.log
+*.tgz
+.npm-cache/
+.pnpm-store/
+.npmrc
+.DS_Store
