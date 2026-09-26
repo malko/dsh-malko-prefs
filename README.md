@@ -23,9 +23,18 @@ page, packaged as a single dsh bundle.
 
 ## Install
 
+From the registry (once published):
+
 ```
-dsh plugin --profile web add /home/aibox/git/dsh-home/dsh-malko-prefs
+dsh plugin --profile web add dsh-malko-prefs
 # then restart dsh web
+```
+
+Or from a local checkout / tarball:
+
+```
+dsh plugin --profile web add /path/to/dsh-malko-prefs
+dsh plugin --profile web add ./dsh-malko-prefs-0.1.0.tgz
 ```
 
 The bundle layer does two things (see `cordis.patch.yml`):
@@ -42,9 +51,14 @@ The bundle layer does two things (see `cordis.patch.yml`):
 > it after a dsh upgrade that touches the presets:
 >
 > ```
-> node scripts/gen-preset-override.mjs            # default: global dsh install
-> node scripts/gen-preset-override.mjs <presets-dir>
+> node scripts/gen-preset-override.mjs                 # auto-detects dsh on PATH
+> node scripts/gen-preset-override.mjs <presets-dir>   # or pass it explicitly
+> DSH_PRESETS_DIR=<presets-dir> node scripts/gen-preset-override.mjs
 > ```
+>
+> The generated `cordis.patch.yml` is tied to the preset composition of the dsh
+> version it was generated against — the plugin targets whichever dsh ships
+> those presets (declared through its optional `peerDependencies`).
 
 Rollback: `dsh plugin --profile web remove dsh-malko-prefs` (then restart).
 
@@ -145,6 +159,22 @@ node scripts/check.mjs    # static conformance checks
 | `src/client.ts` | settings page (compaction + model enrichment) |
 | `scripts/gen-preset-override.mjs` | regenerates `cordis.patch.yml` from the installed presets |
 | `scripts/check.mjs` | manifest / bundle / cache-safety checks |
+
+## Publishing
+
+The package is publication-ready:
+
+- `private` is removed; `LICENSE` (MIT) and `author` are set; `files` ships
+  `lib/`, `cordis.patch.yml`, `scripts/` and `LICENSE`.
+- `prepublishOnly` runs the build and `scripts/check.mjs`.
+- Conformant bundle: `dsh.bundle.patch`, `exports["./client"]` and
+  `exports["./package.json"]`, the client bundle id equals the package name,
+  and the client requires only baseline platform modules.
+- The name is free on npmjs.com; release with `npm publish` (unscoped/public).
+
+Caveat: `cordis.patch.yml` is generated from the shipped presets, so regenerate
+it against the dsh version you target and keep the `peerDependencies` ranges in
+sync before publishing.
 
 ## Limits
 

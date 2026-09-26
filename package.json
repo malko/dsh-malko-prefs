@@ -1,7 +1,6 @@
 {
   "name": "dsh-malko-prefs",
   "version": "0.1.0",
-  "private": true,
   "description": "Personal dsh preferences: a tunable companion to the official compaction engine (threshold, retention, summarization model/reasoning, turn-end compaction) and llama.cpp model-enrichment for the Models page",
   "type": "module",
   "main": "lib/index.mjs",
@@ -14,13 +13,26 @@
   "files": [
     "lib/",
     "cordis.patch.yml",
-    "scripts/"
+    "scripts/",
+    "LICENSE"
   ],
   "license": "MIT",
+  "author": "Jonathan Gotti aka malko <jgotti@jgotti.org>",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "dsh-plugin",
+    "cordis",
+    "compaction",
+    "context",
+    "llama.cpp",
+    "models"
+  ],
   "scripts": {
     "build": "node build.mjs",
     "gen-patch": "node scripts/gen-preset-override.mjs",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "prepublishOnly": "npm run build && npm run check"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.4",
@@ -47,7 +59,12 @@
       "patch": "./cordis.patch.yml"
     },
     "client": {
-      "platform": "web"
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-api-remotes"
+      ]
     }
   }
 }

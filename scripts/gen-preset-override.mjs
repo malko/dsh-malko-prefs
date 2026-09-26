@@ -19,21 +19,48 @@
  * `<presets-dir>` defaults to `$DSH_PRESETS_DIR`, then to the well-known
  * location inside the global dsh install on this machine.
  */
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
+import { delimiter, dirname, join } from 'node:path'
 
 const PACKAGE = 'dsh-malko-prefs'
 const ENGINE = `${PACKAGE}/compaction`
 const BASE_ENGINE = '@deepseek-ai/dsh-compaction-basic'
 
-const DEFAULT_PRESETS_DIR = join(
-  '/home/aibox/.nvm/versions/node/v24.13.1/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-web-app/presets',
-)
+/** First `name` executable found on `PATH`. */
+function findOnPath(name) {
+  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
+    if (dir === '') continue
+    const candidate = join(dir, name)
+    try {
+      if (statSync(candidate).isFile() || statSync(candidate).isSymbolicLink()) return candidate
+    } catch { /* not here */ }
+  }
+  return undefined
+}
 
-const presetsDir = process.argv[2] ?? process.env.DSH_PRESETS_DIR ?? DEFAULT_PRESETS_DIR
-if (!existsSync(presetsDir)) {
-  console.error(`gen-preset-override: presets dir not found: ${presetsDir}`)
-  console.error('usage: node scripts/gen-preset-override.mjs <presets-dir>')
+/**
+ * Locate the dsh install's `@deepseek-ai/dsh-web-app/presets` directory by
+ * resolving the `dsh` executable on PATH (`dsh` → `@deepseek-ai/dsh/lib/bin.js`).
+ * @returns {string | undefined}
+ */
+function discoverPresetsDir() {
+  if (process.env.DSH_PRESETS_DIR !== undefined) return process.env.DSH_PRESETS_DIR
+  const bin = findOnPath(process.platform === 'win32' ? 'dsh.cmd' : 'dsh')
+  if (bin === undefined) return undefined
+  try {
+    const real = realpathSync(bin)
+    const dshPackage = dirname(dirname(real))
+    const presets = join(dshPackage, 'node_modules', '@deepseek-ai', 'dsh-web-app', 'presets')
+    if (existsSync(presets)) return presets
+  } catch { /* fall through */ }
+  return undefined
+}
+
+const presetsDir = process.argv[2] ?? discoverPresetsDir()
+if (presetsDir === undefined || !existsSync(presetsDir)) {
+  console.error('gen-preset-override: dsh presets directory not found.')
+  console.error('Pass it explicitly or set DSH_PRESETS_DIR, e.g.:')
+  console.error('  node scripts/gen-preset-override.mjs /path/to/dsh/node_modules/@deepseek-ai/dsh-web-app/presets')
   process.exit(1)
 }
 
