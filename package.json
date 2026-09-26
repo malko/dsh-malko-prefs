@@ -18,6 +18,14 @@
   ],
   "license": "MIT",
   "author": "Jonathan Gotti aka malko <jgotti@jgotti.org>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/malko/dsh-malko-prefs.git"
+  },
+  "homepage": "https://github.com/malko/dsh-malko-prefs#readme",
+  "bugs": {
+    "url": "https://github.com/malko/dsh-malko-prefs/issues"
+  },
   "keywords": [
     "dsh",
     "deepseek-harness",
@@ -38,19 +46,21 @@
     "@deepseek-ai/cordis": ">=4.0.4",
     "@deepseek-ai/schemastery": ">=3.18.4",
     "@deepseek-ai/dsh-compaction-basic": ">=0.1.7-rc.1",
-    "@deepseek-ai/dsh-llm": ">=0.1.7-rc.1"
+    "@deepseek-ai/dsh-llm": ">=0.1.7-rc.1",
+    "@deepseek-ai/dsh-typert-protocol": ">=0.1.7-rc.1"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": { "optional": true },
     "@deepseek-ai/schemastery": { "optional": true },
     "@deepseek-ai/dsh-compaction-basic": { "optional": true },
-    "@deepseek-ai/dsh-llm": { "optional": true }
+    "@deepseek-ai/dsh-llm": { "optional": true },
+    "@deepseek-ai/dsh-typert-protocol": { "optional": true }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-typert-protocol": "0.1.1-rc.2",
     "zod": "4.5.4"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-typert-protocol": "0.1.7-rc.1",
     "@deepseek-ai/schemastery": "~3.18.4",
     "esbuild": "^0.28.1"
   },
