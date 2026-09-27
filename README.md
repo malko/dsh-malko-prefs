@@ -8,8 +8,8 @@
 > (see [Install](#install)). Use at your own risk.
 
 Personal preferences for DeepSeek Harness (dsh): a **tunable companion to the
-official compaction engine** and a **llama.cpp model enrichment** for the Models
-page, packaged as a single dsh bundle.
+official compaction engine**, a **llama.cpp model enrichment** for the Models
+page, and **tab notifications**, packaged as a single dsh bundle.
 
 - **Compaction** — the official `@deepseek-ai/dsh-compaction-basic` engine is
   the reference behaviour; this plugin wraps it with a settings page so the
@@ -19,6 +19,11 @@ page, packaged as a single dsh bundle.
 - **Model enrichment** — reads the richer model metadata a llama.cpp server
   exposes (`meta.n_ctx`, `architecture.input_modalities`, `aliases`) and fills
   the corresponding `llm-pi-ai` model entries (context window, text/image input).
+- **Notifications** — the browser tab icon turns green when a main session
+  finishes unattended and amber while a question/approval waits for you, and the
+  browser raises a notification on either event. Ported from
+  [`dsh-notice-center`](https://github.com/SCP-QQ/dsh-notice-center) (MIT); no
+  sound library, just the colours and the notifications.
 
 ## Requirements
 
@@ -73,7 +78,11 @@ Rollback: `dsh plugin --profile web remove dsh-malko-prefs` (then restart).
 
 ## Settings — “Malko's prefs”
 
-Adds a section to Settings. All fields are applied **live** (no restart).
+Adds a section to Settings, split into three sub-tabs: **Context compaction**,
+**llama.cpp models**, and **Notifications**. All fields are applied **live**
+(no restart).
+
+### Context compaction
 
 ### Compaction threshold
 
@@ -122,6 +131,40 @@ server** button reads `GET {baseURL}/models` and completes the model entries
 `architecture.input_modalities`). Existing user values are never overwritten;
 new providers adopt the whole list.
 
+### Notifications
+
+Two independent features, both driven by the official client signals
+(`sessions`, `uiSession.sessionStatus`); nothing is persisted beyond the config.
+
+**Tab status light** — recolours the browser tab icon:
+
+| Colour | Meaning | Clears when |
+|---|---|---|
+| green | a main session finished while you were away | you open that session / return to the tab |
+| amber | a session waits for you (question / approval / plan review) | you handle it |
+| idle | nothing to report (official favicon unless you set a colour) | — |
+
+Amber wins over green, and sub-agent sessions are ignored.
+
+**System notifications** — a browser notification on session completion or on a
+new pending interaction, with the session name as the title. Defaults to only
+firing when the tab is not in the foreground (visible **and** focused); enable
+**Notify in the foreground** to also fire while you watch, and **Keep on
+screen** to stop the notification from auto-hiding. Enabling notifications asks
+the browser for permission once.
+
+| Field | Key | Default |
+|---|---|---|
+| Color the tab icon | `colorsEnabled` | on |
+| Finished / Waiting / Idle color | `green` / `amber` / `black` | official sidebar colors; `black` empty = official favicon |
+| Enable notifications | `notifyEnabled` | **off** |
+| Notify in the foreground | `notifyForeground` | off |
+| Keep on screen | `notifyAutoHide` | off |
+
+> System notifications need a **secure context** — `http://127.0.0.1:PORT` or
+> `localhost`. Opened over a LAN IP the Notification API is unavailable (a
+> browser rule, not a plugin one); the tab status light still works.
+
 ## Commands
 
 - `/compact` — the official dsh command (idle manual compaction).
@@ -139,7 +182,8 @@ host plugin  (lib/index.mjs)
 
 client plugin (lib/client.js)
   ├─ mounts its own malkoModels Remote via ctx.remote.$mount()
-  └─ settings page (primitives Switch/Button + themed fields)
+  ├─ tab status light + notifications (src/notify.ts, optional uiSession)
+  └─ settings page: 3 sub-tabs (compaction / models / notifications)
 
 preset plugin (lib/compaction.mjs)
   └─ MalkoCompactionEngine extends BasicCompactionEngine
@@ -172,7 +216,9 @@ node scripts/check.mjs    # static conformance checks
 | `src/typert.ts` | Host Typert manifest (zod strict codecs) |
 | `src/typert.host.ts` | the `./typert` export entry `dsh-typert-loader` imports |
 | `src/probe.ts` | `malkoModels` Service (llama.cpp `/models` probe) |
-| `src/client.ts` | settings page (compaction + model enrichment) |
+| `src/client.ts` | settings page (three sub-tabs) |
+| `src/notify.ts` | tab status light + browser notifications (ported from dsh-notice-center) |
+| `src/whale.ts` | the recolored official whale SVG used as the tab icon |
 | `scripts/gen-preset-override.mjs` | regenerates `cordis.patch.yml` from the installed presets |
 | `scripts/check.mjs` | manifest / bundle / cache-safety checks |
 
@@ -201,3 +247,7 @@ sync before publishing.
   which compacts the maximal safe head (retention 0).
 - The model enrichment is host-side (the browser cannot reach a local
   llama.cpp server cross-origin).
+- Browser notifications require a secure context (`127.0.0.1`/`localhost`); the
+  tab status light's green/amber state is in-memory and resets on reload.
+- There is no notification sound library (unlike dsh-notice-center) — only the
+  tab colours and the notifications themselves.

@@ -25,6 +25,11 @@ export const name = 'dsh-malko-prefs'
 /** No required host service: the settings/probe halves are optional. */
 export const inject = []
 
+/** `#RRGGBB` colour literal. */
+const HEX = /^#[0-9a-fA-F]{6}$/
+/** `#RRGGBB` or empty (empty = keep the official favicon). */
+const HEX_OR_EMPTY = /^(#[0-9a-fA-F]{6})?$/
+
 /**
  * The user's preferences. Every field is volatile so the settings domain
  * serves the `malko-prefs` namespace and the browser page can read/write it.
@@ -45,6 +50,13 @@ export const Config = z.object({
   maxTokens: z.number().step(1).min(1).default(DEFAULT_PREFS.maxTokens).volatile(),
   compactionRetries: z.number().step(1).min(0).default(DEFAULT_PREFS.compactionRetries).volatile(),
   maxOverflowRetries: z.number().step(1).min(0).default(DEFAULT_PREFS.maxOverflowRetries).volatile(),
+  colorsEnabled: z.boolean().default(DEFAULT_PREFS.colorsEnabled).volatile(),
+  green: z.string().pattern(HEX).default(DEFAULT_PREFS.green).volatile(),
+  amber: z.string().pattern(HEX).default(DEFAULT_PREFS.amber).volatile(),
+  black: z.string().pattern(HEX_OR_EMPTY).default(DEFAULT_PREFS.black).volatile(),
+  notifyEnabled: z.boolean().default(DEFAULT_PREFS.notifyEnabled).volatile(),
+  notifyForeground: z.boolean().default(DEFAULT_PREFS.notifyForeground).volatile(),
+  notifyAutoHide: z.boolean().default(DEFAULT_PREFS.notifyAutoHide).volatile(),
 })
 
 /**
