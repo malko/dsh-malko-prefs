@@ -1,76 +1,14 @@
 /**
- * dsh-malko-prefs — llama.cpp model probe (host half).
+ * dsh-malko-prefs — llama.cpp model probe (host service).
  *
  * The official `llm-pi-ai` discovery only reads generic fields
  * (`id`/`name`/`contextWindow`/`maxTokens`); llama.cpp publishes richer model
  * entries (`meta.n_ctx`, `meta.n_ctx_train`, `architecture.input_modalities`,
- * `aliases`) that it ignores. This Typert remote lets the browser ask the Host
- * to read those and hand back candidates the Models UI can adopt.
+ * `aliases`) that it ignores. This Service backs the `malkoModels/probe`
+ * Typert remote (declared in `./typert.ts`) so the browser can ask the Host to
+ * read those and hand back candidates the Models UI can adopt.
  */
 import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import { z } from 'zod'
-
-/** Invocation args: the provider endpoint to interrogate. */
-const probeArgsSchema = z.object({
-  baseURL: z.string(),
-  api: z.string().optional(),
-})
-
-/** One enriched candidate. */
-const candidateSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  contextWindow: z.number().optional(),
-  maxTokens: z.number().optional(),
-  input: z.array(z.string()).optional(),
-})
-
-/** Probe result. */
-const probeResultSchema = z.object({
-  models: z.array(candidateSchema),
-})
-
-/** Wire contract for the `malkoModels` service. */
-export const PROBE_INVOCATIONS = [
-  {
-    id: 'dsh-malko-prefs#malkoModels/probe',
-    service: 'malkoModels',
-    namespace: 'malkoModels',
-    method: 'probe',
-    invocation: { kind: 'direct' },
-    parameters: [
-      {
-        name: 'args',
-        wire: 'args',
-        source: 'argument',
-        codec: { mode: 'strict', typeSymbol: 'dsh-malko-prefs#ProbeArgs', schema: probeArgsSchema },
-      },
-    ],
-    result: { mode: 'strict', typeSymbol: 'dsh-malko-prefs#ProbeResult', schema: probeResultSchema },
-  },
-]
-
-/** Typert manifest contributed by this package. */
-export const PROBE_MANIFEST = {
-  package: 'dsh-malko-prefs',
-  face: 'host',
-  schemas: [],
-  model: {
-    services: [{
-      key: 'malkoModels',
-      exportName: 'MalkoModelsRuntime',
-      description: 'llama.cpp model enrichment for the Models page.',
-      tags: [],
-      members: [
-        { kind: 'method', name: 'probe', signature: 'probe(args: ProbeArgs): Promise<ProbeResult>' },
-      ],
-      types: [],
-    }],
-    events: [],
-    objects: [],
-  },
-  invocations: PROBE_INVOCATIONS,
-}
 
 /** First finite positive integer among the candidates. */
 function pickInt(...values) {

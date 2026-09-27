@@ -46,8 +46,10 @@ dsh plugin --profile web add ./dsh-malko-prefs-0.1.0.tgz
 
 The bundle layer does two things (see `cordis.patch.yml`):
 
-1. inserts the Host half (settings service `malkoPrefs` + Typert remote
-   `malkoModels`);
+1. inserts the Host half: the settings service `malkoPrefs` and the
+   `malkoModels` probe Service, whose strict Typert wire definition is
+   contributed through the package `./typert` export that
+   `@deepseek-ai/dsh-typert-loader` registers automatically on mount;
 2. restates every shipped agent preset (`preset-cordis`, `preset-ptc`,
    `preset-standard`) with the official `compaction-basic` row retargeted at
    `dsh-malko-prefs/compaction`.
@@ -69,7 +71,7 @@ The bundle layer does two things (see `cordis.patch.yml`):
 
 Rollback: `dsh plugin --profile web remove dsh-malko-prefs` (then restart).
 
-## Settings — “Model & context (malko)”
+## Settings — “Malko's prefs”
 
 Adds a section to Settings. All fields are applied **live** (no restart).
 
@@ -132,8 +134,12 @@ new providers adopt the whole list.
 host plugin  (lib/index.mjs)
   ├─ Config (volatile)  ──▶ settings page "malko-prefs"
   ├─ service malkoPrefs ──▶ live prefs + force queue
-  ├─ Typert remote malkoModels (llama.cpp probe)
+  ├─ service malkoModels ──▶ llama.cpp probe (wire def in lib/typert.host.mjs)
   └─ /force-compact command
+
+client plugin (lib/client.js)
+  ├─ mounts its own malkoModels Remote via ctx.remote.$mount()
+  └─ settings page (primitives Switch/Button + themed fields)
 
 preset plugin (lib/compaction.mjs)
   └─ MalkoCompactionEngine extends BasicCompactionEngine
@@ -153,7 +159,7 @@ methods to a proxy, and private members would throw
 ## Development
 
 ```
-node build.mjs            # esbuild → lib/index.mjs, lib/compaction.mjs, lib/client.js
+node build.mjs            # esbuild → lib/{index,compaction,typert.host}.mjs + lib/client.js
 node scripts/check.mjs    # static conformance checks
 ```
 
@@ -162,7 +168,10 @@ node scripts/check.mjs    # static conformance checks
 | `src/prefs.ts` | preference fields, defaults, `parseTokenText` |
 | `src/index.ts` | host plugin: volatile Config, `malkoPrefs`, `/force-compact` |
 | `src/compaction.ts` | `MalkoCompactionEngine` (extends the official engine) |
-| `src/probe.ts` | Typert remote `malkoModels` (llama.cpp probe) |
+| `src/remote.ts` | shared wire identity + `probeInvocation()` builder |
+| `src/typert.ts` | Host Typert manifest (zod strict codecs) |
+| `src/typert.host.ts` | the `./typert` export entry `dsh-typert-loader` imports |
+| `src/probe.ts` | `malkoModels` Service (llama.cpp `/models` probe) |
 | `src/client.ts` | settings page (compaction + model enrichment) |
 | `scripts/gen-preset-override.mjs` | regenerates `cordis.patch.yml` from the installed presets |
 | `scripts/check.mjs` | manifest / bundle / cache-safety checks |
@@ -176,7 +185,8 @@ The package is publication-ready:
 - `prepublishOnly` runs the build and `scripts/check.mjs`.
 - Conformant bundle: `dsh.bundle.patch`, `exports["./client"]` and
   `exports["./package.json"]`, the client bundle id equals the package name,
-  and the client requires only baseline platform modules.
+  and the client requires only baseline platform modules (`react`,
+  `@deepseek-ai/dsh-client-ui-primitives`).
 - The name is free on npmjs.com; release with `npm publish` (unscoped/public).
 
 Caveat: `cordis.patch.yml` is generated from the shipped presets, so regenerate

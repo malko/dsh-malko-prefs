@@ -21,13 +21,14 @@ async function hostBundle(entry, outfile) {
 
 await hostBundle('src/index.ts', 'lib/index.mjs')
 await hostBundle('src/compaction.ts', 'lib/compaction.mjs')
+await hostBundle('src/typert.host.ts', 'lib/typert.host.mjs')
 
 const clientBuild = await build({
   entryPoints: ['src/client.ts'],
   bundle: true,
   platform: 'browser',
   format: 'cjs',
-  external: ['react', 'react/jsx-runtime'],
+  external: ['react', 'react/jsx-runtime', '@deepseek-ai/dsh-client-ui-primitives'],
   sourcemap: 'inline',
   write: false,
 })
@@ -48,4 +49,4 @@ writeFileSync(
   ].join('\n'),
 )
 
-console.log('built dsh-malko-prefs (lib/index.mjs + lib/compaction.mjs + lib/client.js)')
+console.log('built dsh-malko-prefs (lib/index.mjs + lib/compaction.mjs + lib/typert.host.mjs + lib/client.js)')

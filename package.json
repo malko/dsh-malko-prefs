@@ -8,6 +8,7 @@
     ".": { "default": "./lib/index.mjs" },
     "./compaction": { "default": "./lib/compaction.mjs" },
     "./client": { "default": "./lib/client.js" },
+    "./typert": { "default": "./lib/typert.host.mjs" },
     "./package.json": "./package.json"
   },
   "files": [
@@ -73,6 +74,7 @@
       "inject": [
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-primitives",
         "@deepseek-ai/dsh-api-remotes"
       ]
     }

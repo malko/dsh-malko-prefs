@@ -8,6 +8,8 @@
  * model/reasoning pickers.
  */
 import React from 'react'
+import { Button, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
+import { probeInvocation } from './remote.ts'
 
 export const name = 'dsh-malko-prefs'
 export const inject = ['slots', 'locale', 'configForms', 'remote']
@@ -17,10 +19,19 @@ const MODEL_NS = 'llm-pi-ai'
 const LOCALE_NS = 'settings.malko-prefs'
 const SLOT = 'settings.section'
 
+/** Strict-codec stub: the browser never decodes its own arguments. */
+const identitySchema = () => ({ parse: (value) => value })
+
+/** Browser contribution mounted through `ctx.remote.$mount()`. */
+const PROBE_REMOTE = {
+  package: 'dsh-malko-prefs',
+  descriptors: [probeInvocation(identitySchema, identitySchema)],
+}
+
 const el = React.createElement
 
 const en = {
-  title: 'Model & context (malko)',
+  title: "Malko's prefs",
   intro: 'Tunable companion to the official compaction engine.',
   thresholdTitle: 'Compaction threshold',
   thresholdTokens: 'Threshold (tokens)',
@@ -68,7 +79,7 @@ const en = {
 }
 
 const zh = {
-  title: '\u6a21\u578b\u4e0e\u4e0a\u4e0b\u6587\uff08malko\uff09',
+  title: 'Malko \u504f\u597d',
   intro: '\u5b98\u65b9\u538b\u7f29\u5f15\u64ce\u7684\u53ef\u8c03\u4f34\u751f\u3002',
   thresholdTitle: '\u538b\u7f29\u9600\u503c',
   thresholdTokens: '\u9600\u503c\uff08tokens\uff09',
@@ -145,14 +156,28 @@ function buildCatalog(providers) {
 
 const S = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 680, paddingTop: 4 },
-  group: { marginTop: 10, paddingTop: 10, borderTop: '0.5px solid var(--dsw-alias-border-l2, #ddd)' },
+  group: { marginTop: 10, paddingTop: 10, borderTop: '0.5px solid var(--dsw-alias-border-l3)' },
   groupTitle: { fontWeight: 600, marginBottom: 2 },
-  label: { display: 'block', fontWeight: 600, marginBottom: 6 },
-  hint: { opacity: 0.7, fontSize: 12, margin: '4px 0 12px' },
-  input: { padding: '6px 8px', border: '1px solid var(--dsw-alias-border-l2, #ccc)', borderRadius: 4, fontFamily: 'inherit', background: 'var(--dsw-alias-bg-base, #fff)', color: 'var(--dsw-alias-label-primary, #111)', width: '100%', boxSizing: 'border-box' },
+  label: { display: 'block', fontWeight: 600, marginBottom: 6, color: 'var(--dsw-alias-label-primary)' },
+  hint: { color: 'var(--dsw-alias-label-tertiary)', fontSize: 12, margin: '4px 0 12px' },
+  input: {
+    height: 32,
+    padding: '0 8px',
+    border: '0.5px solid var(--dsw-alias-border-l4)',
+    borderRadius: 8,
+    fontFamily: 'inherit',
+    fontSize: 14,
+    background: 'var(--dsw-alias-bg-layer-1)',
+    color: 'var(--dsw-alias-label-primary)',
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+  select: { cursor: 'pointer' },
   rowTwo: { display: 'flex', gap: 12 },
   col: { flex: 1, minWidth: 0 },
-  inline: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
+  toggle: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 },
+  toggleText: { display: 'flex', flexDirection: 'column', gap: 2 },
+  toggleLabel: { fontWeight: 600, color: 'var(--dsw-alias-label-primary)' },
   error: { color: 'var(--dsw-alias-state-error-primary, #c00)', fontSize: 12, marginTop: 2 },
 }
 
@@ -203,11 +228,18 @@ function PrefsSection(props) {
     disabled,
     onChange: (e) => { const n = Number(e.target.value); if (Number.isFinite(n)) write(field, n) },
   })
-  const checkbox = (field, fallback) => ({
-    checked: value[field] !== undefined ? !!value[field] : fallback,
-    disabled,
-    onChange: (e) => write(field, e.target.checked),
-  })
+  const switchField = (labelKey, field, hintKey, fallback) => el('div', { style: S.toggle, key: field },
+    el(Switch, {
+      checked: value[field] !== undefined ? !!value[field] : fallback,
+      disabled,
+      label: t(labelKey),
+      onChange: (next) => write(field, next),
+    }),
+    el('div', { style: S.toggleText },
+      el('span', { style: S.toggleLabel }, t(labelKey)),
+      hintKey ? el('span', { style: { color: 'var(--dsw-alias-label-tertiary)', fontSize: 12 } }, t(hintKey)) : null,
+    ),
+  )
   const textField = (labelKey, field, hintKey) => el('div', { style: S.col, key: field },
     el('div', { style: S.label }, t(labelKey)),
     el('input', {
@@ -223,11 +255,6 @@ function PrefsSection(props) {
     el('div', { style: S.label }, t(labelKey)),
     el('input', { type: 'number', step: 'any', style: S.input, ...num(field, fallback) }),
     hintKey ? el('div', { style: S.hint }, t(hintKey)) : null,
-  )
-  const checkField = (labelKey, field, hintKey, fallback) => el('label', { style: S.inline, key: field },
-    el('input', { type: 'checkbox', ...checkbox(field, fallback) }),
-    el('span', null, t(labelKey)),
-    hintKey ? el('span', { style: { opacity: 0.7, fontSize: 12 } }, t(hintKey)) : null,
   )
 
   const enrichProvider = async (routeId, profile) => {
@@ -268,13 +295,13 @@ function PrefsSection(props) {
     return el('div', { key: routeId, style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 } },
       el('span', { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, `${routeId}${baseURL ? ` — ${baseURL}` : ''}`),
       baseURL
-        ? el('button', {
-            type: 'button',
-            style: { ...S.input, width: 'auto', cursor: busyRoute === routeId || disabled ? 'default' : 'pointer', flexShrink: 0 },
+        ? el(Button, {
+            variant: 'outline',
+            size: 'sm',
             disabled: busyRoute === routeId || disabled,
             onClick: () => { void enrichProvider(routeId, profile) },
           }, busyRoute === routeId ? t('enriching') : t('enrich'))
-        : el('span', { style: { opacity: 0.6, fontSize: 12, flexShrink: 0 } }, t('noBaseUrl')),
+        : el('span', { style: { color: 'var(--dsw-alias-label-tertiary)', fontSize: 12, flexShrink: 0 } }, t('noBaseUrl')),
     )
   })
 
@@ -291,7 +318,7 @@ function PrefsSection(props) {
   const summarization = [
     el('div', { style: S.col, key: 'mode' },
       el('div', { style: S.label }, t('summarizationMode')),
-      el('select', { style: S.input, disabled, value: mode, onChange: (e) => write('summarizationMode', e.target.value) },
+      el('select', { style: { ...S.input, ...S.select }, disabled, value: mode, onChange: (e) => write('summarizationMode', e.target.value) },
         options([['session', t('modeSession')], ['custom', t('modeCustom')]], mode)),
     ),
   ]
@@ -299,7 +326,7 @@ function PrefsSection(props) {
     summarization.push(el('div', { style: S.col, key: 'provider' },
       el('div', { style: S.label }, t('provider')),
       el('select', {
-        style: S.input, disabled, value: selectedProvider,
+        style: { ...S.input, ...S.select }, disabled, value: selectedProvider,
         onChange: (e) => {
           const next = catalog.find((r) => r.provider === e.target.value)
           write('summarizationProvider', e.target.value)
@@ -311,7 +338,7 @@ function PrefsSection(props) {
     summarization.push(el('div', { style: S.col, key: 'model' },
       el('div', { style: S.label }, t('model')),
       el('select', {
-        style: S.input, disabled,
+        style: { ...S.input, ...S.select }, disabled,
         value: selectedRow ? selectedRow.model : '',
         onChange: (e) => { write('summarizationModel', e.target.value); write('summarizationReasoning', 'default') },
       }, modelsForProvider.map((r) => el('option', { key: r.model, value: r.model }, r.name))),
@@ -319,7 +346,7 @@ function PrefsSection(props) {
   }
   summarization.push(el('div', { style: S.col, key: 'reasoning' },
     el('div', { style: S.label }, t('reasoning')),
-    el('select', { style: S.input, disabled, value: levelSet.includes(reasoning) ? reasoning : 'default', onChange: (e) => write('summarizationReasoning', e.target.value) },
+    el('select', { style: { ...S.input, ...S.select }, disabled, value: levelSet.includes(reasoning) ? reasoning : 'default', onChange: (e) => write('summarizationReasoning', e.target.value) },
       levelSet.map((lv) => el('option', { key: lv, value: lv }, lv === 'default' ? t('reasoningDefault') : lv === 'off' ? t('reasoningOff') : lv))),
   ))
 
@@ -349,8 +376,8 @@ function PrefsSection(props) {
 
     el('div', { style: S.group },
       el('div', { style: S.groupTitle }, t('behaviourTitle')),
-      checkField('auto', 'auto', 'autoHint', true),
-      checkField('turnEnd', 'turnEndCompactionEnabled', 'turnEndHint', false),
+      switchField('auto', 'auto', 'autoHint', true),
+      switchField('turnEnd', 'turnEndCompactionEnabled', 'turnEndHint', false),
     ),
 
     el('div', { style: S.group },
@@ -378,15 +405,27 @@ function PrefsSection(props) {
   )
 }
 
-export function apply(ctx) {
+export async function apply(ctx) {
   ctx.effect(() => ctx.locale.register(LOCALE_NS, { en, zh }), 'malko-prefs: locale dictionaries')
   const t = ctx.locale.bind(LOCALE_NS)
   const form = ctx.configForms.get(NS)
   const modelForm = ctx.configForms.get(MODEL_NS)
+  // The application only auto-mounts its own Remote selection, so a plugin
+  // ships and mounts its own contribution.
+  try {
+    const disposeRemote = await ctx.remote.$mount(PROBE_REMOTE)
+    ctx.effect(() => () => { void disposeRemote() }, 'malko-prefs: malkoModels remote')
+  } catch (error) {
+    console.error('dsh-malko-prefs: could not mount the malkoModels remote —', error)
+  }
   const injected = () => ({
     hooks: { prefs: form, modelCatalog: modelForm },
     save: (field, value) => form.set(field, value),
-    probe: (args) => ctx.remote.malkoModels.probe(args),
+    probe: (args) => {
+      const remote = ctx.remote
+      if (remote?.malkoModels === undefined) throw new Error('the malkoModels remote is not available')
+      return remote.malkoModels.probe(args)
+    },
     writeModels: (routeId, models) => modelForm.mutate([{ op: 'set', path: ['providers', routeId, 'models'], value: models }]),
   })
   ctx.slots.inject(SLOT, () => ctx.slots.register({

@@ -14,11 +14,12 @@ const check = (name, ok, detail = '') => {
 check('package name', pkg.name === 'dsh-malko-prefs', pkg.name)
 check('exports ./compaction', typeof (pkg.exports?.['./compaction']?.default) === 'string')
 check('exports ./client', typeof (pkg.exports?.['./client']?.default) === 'string')
+check('exports ./typert', typeof (pkg.exports?.['./typert']?.default) === 'string')
 check('exports ./package.json', pkg.exports?.['./package.json'] !== undefined)
 check('dsh.bundle.patch', pkg.dsh?.bundle?.patch === './cordis.patch.yml')
 check('dsh.client.platform web', pkg.dsh?.client?.platform === 'web')
 
-for (const file of ['lib/index.mjs', 'lib/compaction.mjs', 'lib/client.js', 'cordis.patch.yml']) {
+for (const file of ['lib/index.mjs', 'lib/compaction.mjs', 'lib/typert.host.mjs', 'lib/client.js', 'cordis.patch.yml']) {
   check(`built: ${file}`, existsSync(file))
 }
 
@@ -26,8 +27,28 @@ const client = readFileSync('lib/client.js', 'utf8')
 const idMatch = /window\.__ModuleLoader__\.load\(\{\s*id:\s*"([^"]+)"/.exec(client)
 check('client bundle id = package name', idMatch?.[1] === pkg.name, String(idMatch?.[1]))
 const requires = [...new Set([...client.matchAll(/require\("([^"]+)"\)/g)].map((m) => m[1]))]
-const allowed = new Set(['react', 'react/jsx-runtime'])
-check('client requires only react', requires.every((r) => allowed.has(r)), requires.join(', '))
+const allowed = new Set(['react', 'react/jsx-runtime', '@deepseek-ai/dsh-client-ui-primitives'])
+check('client requires only baseline platform modules', requires.every((r) => allowed.has(r)), requires.join(', '))
+
+// The Host strict wire definition is contributed through `./typert`, which
+// dsh-typert-loader registers; verify the manifest it will import.
+const { TYPERT } = await import('../lib/typert.host.mjs')
+check('typert.ts manifest package/face', TYPERT.package === pkg.name && TYPERT.face === 'host')
+const invocations = Array.isArray(TYPERT.invocations) ? TYPERT.invocations : []
+const probe = invocations[0]
+check(
+  'probe invocation: direct, json args, strict codecs with create()',
+  probe !== undefined
+    && probe.namespace === 'malkoModels'
+    && probe.method === 'probe'
+    && probe.invocation?.kind === 'direct'
+    && probe.parameters.length === 1
+    && probe.parameters[0].wire === 'args'
+    && probe.parameters[0].source === 'json'
+    && [probe.result, ...probe.parameters.map((p) => p.codec)].every(
+      (c) => c.mode === 'strict' && typeof c.typeSymbol === 'string' && typeof c.create === 'function',
+    ),
+)
 
 const patch = readFileSync('cordis.patch.yml', 'utf8')
 check('patch inserts host row', /- insert:\n {4}- id: malko-prefs\n {6}name: 'dsh-malko-prefs'/.test(patch))

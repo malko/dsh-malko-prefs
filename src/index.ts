@@ -14,10 +14,10 @@
 import { Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { DEFAULT_PREFS, readPrefs } from './prefs.ts'
-import { MalkoModelsRuntime, PROBE_MANIFEST } from './probe.ts'
+import { MalkoModelsRuntime } from './probe.ts'
 
 // Re-exported so the Typert manifest's `exportName` resolves against this entry.
-export { MalkoModelsRuntime, PROBE_MANIFEST } from './probe.ts'
+export { MalkoModelsRuntime } from './probe.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'dsh-malko-prefs'
@@ -147,19 +147,10 @@ function registerForceCommand(ctx) {
 export function apply(ctx, config) {
   void new MalkoPrefs(ctx, config)
   registerForceCommand(ctx)
-  // llama.cpp probe remote (optional: only when the Typert gateway is mounted).
+  // llama.cpp probe service. Its strict wire definition is contributed through
+  // the package `./typert` export, which @deepseek-ai/dsh-typert-loader
+  // registers automatically when this entry mounts.
   void new MalkoModelsRuntime(ctx)
-  try {
-    const typert = ctx.get('typert')
-    if (typert !== undefined && typeof typert.register === 'function') {
-      ctx.effect(() => {
-        const dispose = typert.register(PROBE_MANIFEST)
-        return () => { void dispose() }
-      }, 'dsh-malko-prefs: typert manifest')
-    }
-  } catch {
-    /* typert gateway absent — the Models enrichment is simply unavailable */
-  }
   try {
     ctx.inject(['settings'], (child) => {
       child.effect(() => child.settings.configure({ auto: false }, ctx.fiber))
