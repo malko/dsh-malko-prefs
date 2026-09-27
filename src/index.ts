@@ -53,6 +53,7 @@ export const Config = z.object({
   colorsEnabled: z.boolean().default(DEFAULT_PREFS.colorsEnabled).volatile(),
   green: z.string().pattern(HEX).default(DEFAULT_PREFS.green).volatile(),
   amber: z.string().pattern(HEX).default(DEFAULT_PREFS.amber).volatile(),
+  working: z.string().pattern(HEX).default(DEFAULT_PREFS.working).volatile(),
   black: z.string().pattern(HEX_OR_EMPTY).default(DEFAULT_PREFS.black).volatile(),
   notifyEnabled: z.boolean().default(DEFAULT_PREFS.notifyEnabled).volatile(),
   notifyForeground: z.boolean().default(DEFAULT_PREFS.notifyForeground).volatile(),

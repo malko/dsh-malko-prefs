@@ -19,7 +19,11 @@ export const LOCALE_NS = 'settings.malko-prefs'
 const DEFAULT_HREF = '/favicon.svg'
 const DEFAULT_GREEN = '#22C55E'
 const DEFAULT_AMBER = '#F59E0B'
+const DEFAULT_WORKING = '#3B82F6'
 const HEX = /^#[0-9a-fA-F]{6}$/
+/** Glow animation: frame count and per-frame delay while a session is working. */
+const GLOW_FRAMES = 10
+const GLOW_FRAME_MS = 110
 /** Tool-name cap: longer names would blow the notification body's single line. */
 const TOOL_NAME_LIMIT = 32
 
@@ -87,6 +91,7 @@ export function startStatusLight(ctx, form) {
       colorsEnabled: value.colorsEnabled !== false,
       green: HEX.test(value.green) ? value.green : DEFAULT_GREEN,
       amber: HEX.test(value.amber) ? value.amber : DEFAULT_AMBER,
+      working: HEX.test(value.working) ? value.working : DEFAULT_WORKING,
       black: HEX.test(value.black) ? value.black : undefined,
       notifyEnabled: value.notifyEnabled === true,
       notifyForeground: value.notifyForeground === true,
@@ -99,10 +104,42 @@ export function startStatusLight(ctx, form) {
   const setHref = (href) => { const link = iconLink(); if (link) link.href = href }
   /** Original href at start-up; restoring it beats hardcoding a path. */
   const originalHref = iconLink()?.href ?? DEFAULT_HREF
-  /** Last href we set; null = official icon in place. */
+  /** Last href we set; `'glow'` while animating; null = official icon. */
   let applied = null
   const uri = (hex) => `data:image/svg+xml,${encodeURIComponent(whaleSvg(hex))}`
   const restore = () => { if (applied !== null) { setHref(originalHref); applied = null } }
+
+  // Working state: the favicon cannot animate on its own (browsers do not run
+  // SVG animation in the tab), so we swap pre-rendered glow frames on a timer.
+  let animTimer
+  let animColor
+  const uriGlow = (hex, blur, opacity) => `data:image/svg+xml,${encodeURIComponent(whaleSvg(hex, { blur, opacity }))}`
+  /** One pulsing glow cycle for `hex`, as data-URI frames. */
+  function glowFrames(hex) {
+    const frames = []
+    for (let i = 0; i < GLOW_FRAMES; i += 1) {
+      const phase = (1 - Math.cos((i / GLOW_FRAMES) * Math.PI * 2)) / 2
+      frames.push(uriGlow(hex, 0.8 + phase * 3.2, 0.15 + phase * 0.85))
+    }
+    return frames
+  }
+  function stopAnimation() {
+    if (animTimer !== undefined) { clearInterval(animTimer); animTimer = undefined }
+    animColor = undefined
+  }
+  function startAnimation(hex) {
+    if (animTimer !== undefined && animColor === hex) return
+    stopAnimation()
+    const frames = glowFrames(hex)
+    let index = 0
+    setHref(frames[0])
+    applied = 'glow'
+    animColor = hex
+    animTimer = setInterval(() => {
+      index = (index + 1) % frames.length
+      setHref(frames[index])
+    }, GLOW_FRAME_MS)
+  }
 
   // --- notifications ---------------------------------------------------------
   const PENDING_KIND_KEYS = {
@@ -261,18 +298,39 @@ export function startStatusLight(ctx, form) {
     if (finishedWhileHidden.size > 0) { finishedWhileHidden.clear(); sync() }
   }
 
-  /** Green/amber target (main sessions only; amber wins); null = official icon. */
-  function targetOf(state) {
-    if (!readConfig().colorsEnabled) return null
-    const config = readConfig()
+  /**
+   * Aggregate tab state over main sessions. Priority: amber (something waits
+   * for you) > working (a session is generating) > green (unseen completion)
+   * > idle. Returns `'off'` when the status light is disabled.
+   */
+  function currentKind(state) {
+    if (!readConfig().colorsEnabled) return 'off'
     let green = false
+    let working = false
     for (const row of Object.values(state.byId)) {
       if (row.origin === 'subagent') continue
-      if (row.pendingInteraction !== undefined) return uri(config.amber)
+      if (row.pendingInteraction !== undefined) return 'amber'
+      if (row.running === true) working = true
       if (row.completed === true || finishedWhileHidden.has(row.id)) green = true
     }
-    if (green) return uri(config.green)
-    return config.black ? uri(config.black) : null
+    if (working) return 'working'
+    if (green) return 'green'
+    return 'idle'
+  }
+
+  /** Apply one tab state to the favicon (static recolor or glow animation). */
+  function applyKind(kind) {
+    const config = readConfig()
+    if (kind === 'off') { stopAnimation(); restore(); return }
+    if (kind === 'working') { startAnimation(config.working); return }
+    stopAnimation()
+    const href = kind === 'amber'
+      ? uri(config.amber)
+      : kind === 'green'
+        ? uri(config.green)
+        : (config.black ? uri(config.black) : null)
+    if (href === null) restore()
+    else if (applied !== href) { setHref(href); applied = href }
   }
 
   /** Merge the session rows with the official status store when available. */
@@ -298,9 +356,7 @@ export function startStatusLight(ctx, form) {
     const state = buildState()
     trackEdges(state)
     detectTransitions(state)
-    const next = targetOf(state)
-    if (next === null) restore()
-    else if (applied !== next) { setHref(next); applied = next }
+    applyKind(currentKind(state))
   }
 
   const unsubscribeList = list.subscribe(sync)
@@ -324,6 +380,7 @@ export function startStatusLight(ctx, form) {
   return () => {
     if (notifyTimer !== undefined) clearTimeout(notifyTimer)
     notifyQueue.clear()
+    stopAnimation()
     unsubscribeList()
     unsubscribeForm()
     document.removeEventListener('visibilitychange', onForeground)

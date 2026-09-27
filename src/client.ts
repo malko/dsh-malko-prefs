@@ -90,6 +90,8 @@ const en = {
   colorsEnabledHint: 'Off keeps the official favicon at all times.',
   greenLabel: 'Finished',
   amberLabel: 'Waiting (question/approval)',
+  workingLabel: 'Working',
+  workingHint: 'Pulses while a session is generating.',
   blackLabel: 'Idle color',
   blackHint: 'Leave empty to keep the official favicon when idle.',
   colorReset: 'Clear',
@@ -176,6 +178,8 @@ const zh = {
   colorsEnabledHint: '\u5173\u95ed\u540e\u59cb\u7ec8\u4f7f\u7528\u5b98\u65b9\u56fe\u6807\u3002',
   greenLabel: '\u5df2\u5b8c\u6210',
   amberLabel: '\u5f85\u5904\u7406\uff08\u63d0\u95ee/\u5ba1\u6279\uff09',
+  workingLabel: '\u751f\u6210\u4e2d',
+  workingHint: '\u4f1a\u8bdd\u751f\u6210\u65f6\u56fe\u6807\u547c\u5438\u53d1\u5149\u3002',
   blackLabel: '\u9ed8\u8ba4\u8272',
   blackHint: '\u7559\u7a7a\u5219\u7a7a\u95f2\u65f6\u4f7f\u7528\u5b98\u65b9\u56fe\u6807\u3002',
   colorReset: '\u6e05\u9664',
@@ -362,7 +366,7 @@ function PrefsSection(props) {
   const colorField = (labelKey, field, fallbackHex, optional, hintKey) => {
     const current = typeof value[field] === 'string' ? value[field] : ''
     const shown = current !== '' ? current : (fallbackHex ?? '#000000')
-    return el('div', { style: S.col, key: field },
+    return el('div', { style: { ...S.col, marginBottom: 10 }, key: field },
       el('div', { style: S.label }, t(labelKey)),
       el('div', { style: S.rowFlex },
         el('input', {
@@ -537,9 +541,12 @@ function PrefsSection(props) {
       el('div', { style: S.groupTitle }, t('colorsGroup')),
       el('div', { style: S.hint }, t('colorsIntro')),
       switchField('colorsEnabled', 'colorsEnabled', 'colorsEnabledHint', true),
-      el('div', { style: S.rowTwo, key: 'colors' },
+      el('div', { style: S.rowTwo, key: 'colors1' },
         colorField('greenLabel', 'green', '#22C55E', false, null),
         colorField('amberLabel', 'amber', '#F59E0B', false, null),
+      ),
+      el('div', { style: S.rowTwo, key: 'colors2' },
+        colorField('workingLabel', 'working', '#3B82F6', false, 'workingHint'),
         colorField('blackLabel', 'black', '#000000', true, 'blackHint'),
       ),
     ),

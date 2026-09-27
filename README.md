@@ -140,11 +140,14 @@ Two independent features, both driven by the official client signals
 
 | Colour | Meaning | Clears when |
 |---|---|---|
-| green | a main session finished while you were away | you open that session / return to the tab |
 | amber | a session waits for you (question / approval / plan review) | you handle it |
+| working | a session is generating — the icon **pulses with a glow** | it stops running |
+| green | a main session finished while you were away | you open that session / return to the tab |
 | idle | nothing to report (official favicon unless you set a colour) | — |
 
-Amber wins over green, and sub-agent sessions are ignored.
+Priority is amber > working > green > idle, and sub-agent sessions are ignored.
+The glow is animated by swapping pre-rendered SVG frames (browsers do not run
+SVG animation in a favicon).
 
 **System notifications** — a browser notification on session completion or on a
 new pending interaction, with the session name as the title. Defaults to only
@@ -156,7 +159,7 @@ the browser for permission once.
 | Field | Key | Default |
 |---|---|---|
 | Color the tab icon | `colorsEnabled` | on |
-| Finished / Waiting / Idle color | `green` / `amber` / `black` | official sidebar colors; `black` empty = official favicon |
+| Finished / Waiting / Working / Idle color | `green` / `amber` / `working` / `black` | official sidebar colors for green/amber, blue for working; `black` empty = official favicon |
 | Enable notifications | `notifyEnabled` | **off** |
 | Notify in the foreground | `notifyForeground` | off |
 | Keep on screen | `notifyAutoHide` | off |
