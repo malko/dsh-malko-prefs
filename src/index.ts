@@ -13,6 +13,9 @@
  */
 import { Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { DEFAULT_PREFS, readPrefs } from './prefs.ts'
 import { MalkoModelsRuntime } from './probe.ts'
 
@@ -29,6 +32,46 @@ export const inject = []
 const HEX = /^#[0-9a-fA-F]{6}$/
 /** `#RRGGBB` or empty (empty = keep the official favicon). */
 const HEX_OR_EMPTY = /^(#[0-9a-fA-F]{6})?$/
+
+/** Static route prefix the browser half reads sounds from. */
+export const SOUND_ROUTE = '/malko-prefs-sounds'
+/** Bundled sound library (see `assets/audio/README.md` for provenance). */
+const SOUND_DIR = fileURLToPath(new URL('../assets/audio/', import.meta.url))
+/** Only the library's file-name shape is served — no path traversal. */
+const SOUND_FILE = /^[a-z0-9-]+\.mp3$/
+
+/**
+ * Build the sound static route (plain objects, so it can be tested on a bare
+ * `node:http` server too). Anything but `<id>.mp3` is a 404.
+ * @returns {object[]} routes for `ctx.webServer.register`.
+ */
+export function buildSoundRoutes() {
+  return [{
+    kind: 'prefix',
+    path: SOUND_ROUTE,
+    handler: async (req, res) => {
+      const name = decodeURIComponent(String(req.url ?? '').slice(SOUND_ROUTE.length)).replace(/^\/+/, '')
+      const headers = { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }
+      if (!SOUND_FILE.test(name)) {
+        res.writeHead(404, headers)
+        res.end('Not Found')
+        return
+      }
+      try {
+        const data = await readFile(join(SOUND_DIR, name))
+        res.writeHead(200, {
+          'content-type': 'audio/mpeg',
+          'content-length': String(data.length),
+          'cache-control': 'public, max-age=31536000, immutable',
+        })
+        res.end(data)
+      } catch {
+        res.writeHead(404, headers)
+        res.end('Not Found')
+      }
+    },
+  }]
+}
 
 /**
  * The user's preferences. Every field is volatile so the settings domain
@@ -58,6 +101,9 @@ export const Config = z.object({
   notifyEnabled: z.boolean().default(DEFAULT_PREFS.notifyEnabled).volatile(),
   notifyForeground: z.boolean().default(DEFAULT_PREFS.notifyForeground).volatile(),
   notifyAutoHide: z.boolean().default(DEFAULT_PREFS.notifyAutoHide).volatile(),
+  notifyVolume: z.number().min(0).max(1).default(DEFAULT_PREFS.notifyVolume).volatile(),
+  notifyDoneSound: z.string().default(DEFAULT_PREFS.notifyDoneSound).volatile(),
+  notifyPendingSound: z.string().default(DEFAULT_PREFS.notifyPendingSound).volatile(),
 })
 
 /**
@@ -164,6 +210,14 @@ export function apply(ctx, config) {
   // the package `./typert` export, which @deepseek-ai/dsh-typert-loader
   // registers automatically when this entry mounts.
   void new MalkoModelsRuntime(ctx)
+  // Sound library static route (optional: absent webServer → the browser half
+  // silently falls back to the built-in synthesized chimes).
+  ctx.inject(['webServer'], (webCtx) => {
+    for (const route of buildSoundRoutes()) {
+      const dispose = webCtx.webServer.register(route)
+      if (typeof dispose === 'function') ctx.effect(() => dispose, 'dsh-malko-prefs: sound route')
+    }
+  })
   try {
     ctx.inject(['settings'], (child) => {
       child.effect(() => child.settings.configure({ auto: false }, ctx.fiber))

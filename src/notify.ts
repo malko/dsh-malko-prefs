@@ -57,6 +57,125 @@ export function currentNotificationPermission() {
   return notificationSupport()
 }
 
+/** Static route the Host serves the bundled sounds from. */
+export const SOUND_ROUTE = '/malko-prefs-sounds'
+/** Sentinel meaning "play nothing". */
+export const SOUND_NONE = 'none'
+/** Built-in synthesized chimes (no asset file needed). */
+export const BUILTIN_SOUNDS = [
+  { id: 'builtin-up', labelKey: 'soundBuiltinUp' },
+  { id: 'builtin-down', labelKey: 'soundBuiltinDown' },
+]
+/** opencode sound packs bundled under `assets/audio` (MIT). */
+export const SOUND_PACKS = [
+  { name: 'Alert', prefix: 'alert', count: 10 },
+  { name: 'Bip-bop', prefix: 'bip-bop', count: 10 },
+  { name: 'Staplebops', prefix: 'staplebops', count: 7 },
+  { name: 'Nope', prefix: 'nope', count: 12 },
+  { name: 'Yup', prefix: 'yup', count: 6 },
+]
+
+/** Sound ids of one pack, in display order. */
+export function packSoundIds(pack) {
+  return Array.from({ length: pack.count }, (_, i) => `${pack.prefix}-${String(i + 1).padStart(2, '0')}`)
+}
+
+/** Clamp an arbitrary volume to 0–1 (default 0.6). */
+function normalizeVolume(volume) {
+  if (typeof volume !== 'number' || !Number.isFinite(volume)) return 0.6
+  return Math.min(Math.max(volume, 0), 1)
+}
+
+/** Shared AudioContext for the synthesized chimes. */
+let chimeContext
+function chimeAudioContext() {
+  if (chimeContext !== undefined) return chimeContext
+  try {
+    const Ctor = window.AudioContext ?? window.webkitAudioContext
+    chimeContext = Ctor === undefined ? null : new Ctor()
+  } catch {
+    chimeContext = null
+  }
+  return chimeContext
+}
+
+/** Resume the audio context inside a user gesture (autoplay policy). */
+export function primeSound() {
+  try {
+    const audio = chimeAudioContext()
+    if (audio !== null && audio.state === 'suspended') audio.resume?.()
+  } catch { /* ignore */ }
+}
+
+/** Synthesized chime: up (done) or down (pending). */
+function playChime(kind, volume) {
+  try {
+    const level = normalizeVolume(volume)
+    if (level <= 0) return
+    const audio = chimeAudioContext()
+    if (audio === null) return
+    if (audio.state === 'suspended') audio.resume?.()
+    const notes = kind === 'done' ? [660, 990] : [880, 587]
+    const base = audio.currentTime
+    notes.forEach((frequency, index) => {
+      const oscillator = audio.createOscillator()
+      const gain = audio.createGain()
+      const start = base + index * 0.14
+      oscillator.type = 'sine'
+      oscillator.frequency.value = frequency
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(0.12 * level, start + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.18)
+      oscillator.connect(gain)
+      gain.connect(audio.destination)
+      oscillator.start(start)
+      oscillator.stop(start + 0.2)
+    })
+  } catch { /* ignore */ }
+}
+
+/** Element currently playing, so overlapping sounds do not stack. */
+let activeSound = null
+function stopSound() {
+  const audio = activeSound
+  activeSound = null
+  if (audio === null) return
+  try { audio.pause(); audio.currentTime = 0 } catch { /* ignore */ }
+}
+
+/**
+ * Play a sound id: `builtin-*` is synthesized, a pack id streams the Host's
+ * bundled mp3 and falls back to the synthesized chime when unavailable.
+ * @param {string} id sound id (`none` = silence).
+ * @param {number} volume 0–1.
+ * @param {'done' | 'pending'} kind drives the fallback chime's pitch.
+ */
+export function playSound(id, volume, kind) {
+  const level = normalizeVolume(volume)
+  if (level <= 0) return
+  const name = typeof id === 'string' ? id : ''
+  if (name === '' || name === SOUND_NONE) return
+  stopSound()
+  if (name.startsWith('builtin-')) {
+    playChime(name === 'builtin-up' ? 'done' : name === 'builtin-down' ? 'pending' : kind, level)
+    return
+  }
+  try {
+    const audio = new Audio(SOUND_ROUTE + '/' + name + '.mp3')
+    audio.volume = level
+    activeSound = audio
+    const played = audio.play()
+    if (played !== undefined && typeof played.catch === 'function') {
+      played.catch(() => {
+        if (activeSound === audio) activeSound = null
+        playChime(kind, level)
+      })
+    }
+  } catch {
+    playChime(kind, level)
+  }
+}
+
 /**
  * Watch the session signals and drive the tab icon + notifications.
  * @param {object} ctx client plugin context (needs `sessions`, `locale`).
@@ -96,6 +215,9 @@ export function startStatusLight(ctx, form) {
       notifyEnabled: value.notifyEnabled === true,
       notifyForeground: value.notifyForeground === true,
       notifyAutoHide: value.notifyAutoHide !== false,
+      volume: normalizeVolume(value.notifyVolume ?? 0.6),
+      doneSound: typeof value.notifyDoneSound === 'string' ? value.notifyDoneSound : SOUND_NONE,
+      pendingSound: typeof value.notifyPendingSound === 'string' ? value.notifyPendingSound : SOUND_NONE,
     }
   }
 
@@ -214,6 +336,7 @@ export function startStatusLight(ctx, form) {
           icon: uri(kind === 'done' ? config.green : config.amber),
           requireInteraction: !config.notifyAutoHide,
         })
+        playSound(kind === 'done' ? config.doneSound : config.pendingSound, config.volume, kind)
         notification.onclick = () => {
           try { window.focus() } catch { /* ignore */ }
           try {
@@ -381,6 +504,7 @@ export function startStatusLight(ctx, form) {
     if (notifyTimer !== undefined) clearTimeout(notifyTimer)
     notifyQueue.clear()
     stopAnimation()
+    stopSound()
     unsubscribeList()
     unsubscribeForm()
     document.removeEventListener('visibilitychange', onForeground)

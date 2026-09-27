@@ -10,8 +10,14 @@ import React from 'react'
 import { Button, SegmentedControl, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import { probeInvocation } from './remote.ts'
 import {
+  BUILTIN_SOUNDS,
   LOCALE_NS,
+  SOUND_NONE,
+  SOUND_PACKS,
   currentNotificationPermission,
+  packSoundIds,
+  playSound,
+  primeSound,
   requestNotificationPermission,
   startStatusLight,
 } from './notify.ts'
@@ -104,6 +110,15 @@ const en = {
   notifyForegroundHint: 'Also notify while the tab is visible and focused.',
   notifyAutoHide: 'Keep on screen',
   notifyAutoHideHint: 'On: the notification stays until you dismiss it.',
+  soundGroup: 'Sound',
+  soundIntro: 'Optional notification sound. Default is silent.',
+  notifyVolume: 'Volume',
+  soundDone: 'On session finished',
+  soundPending: 'While waiting for you',
+  soundNoSound: 'No sound',
+  soundPackBuiltin: 'Built-in',
+  soundBuiltinUp: 'Chime Up',
+  soundBuiltinDown: 'Chime Down',
   permissionDenied: 'Blocked by the browser \u2014 re-enable notifications in the site settings.',
   permissionUnsupported: 'This browser does not support system notifications.',
   notifyDoneTitle: 'Session finished',
@@ -192,6 +207,15 @@ const zh = {
   notifyForegroundHint: '\u6807\u7b7e\u9875\u53ef\u89c1\u4e14\u6709\u7126\u70b9\u65f6\u4e5f\u63d0\u9192\u3002',
   notifyAutoHide: '\u5e38\u9a7b\u5c4f\u5e55',
   notifyAutoHideHint: '\u5f00\u542f\u540e\u9700\u624b\u52a8\u5173\u95ed\u624d\u4f1a\u6d88\u5931\u3002',
+  soundGroup: '\u63d0\u793a\u97f3',
+  soundIntro: '\u53ef\u9009\u7684\u901a\u77e5\u63d0\u793a\u97f3\uff0c\u9ed8\u8ba4\u65e0\u58f0\u3002',
+  notifyVolume: '\u97f3\u91cf',
+  soundDone: '\u4f1a\u8bdd\u5b8c\u6210\u65f6',
+  soundPending: '\u7b49\u4f60\u5904\u7406\u65f6',
+  soundNoSound: '\u65e0\u58f0',
+  soundPackBuiltin: '\u5185\u7f6e',
+  soundBuiltinUp: 'Chime Up',
+  soundBuiltinDown: 'Chime Down',
   permissionDenied: '\u5df2\u88ab\u6d4f\u89c8\u5668\u62d2\u7edd\uff0c\u8bf7\u5728\u7ad9\u70b9\u8bbe\u7f6e\u4e2d\u6062\u590d\u901a\u77e5\u6743\u9650\u3002',
   permissionUnsupported: '\u5f53\u524d\u6d4f\u89c8\u5668\u4e0d\u652f\u6301\u7cfb\u7edf\u901a\u77e5\u3002',
   notifyDoneTitle: '\u4f1a\u8bdd\u5df2\u5b8c\u6210',
@@ -392,6 +416,7 @@ function PrefsSection(props) {
   const enableNotifications = (next) => {
     if (!next) { write('notifyEnabled', false); return }
     write('notifyEnabled', true)
+    primeSound()
     void requestNotificationPermission().then(setPermission)
   }
 
@@ -535,6 +560,29 @@ function PrefsSection(props) {
     ),
   ]
 
+  const volumeNow = typeof value.notifyVolume === 'number' ? value.notifyVolume : 0.6
+  const soundSelectOptions = () => [
+    el('option', { key: SOUND_NONE, value: SOUND_NONE }, t('soundNoSound')),
+    el('optgroup', { key: 'builtin', label: t('soundPackBuiltin') },
+      BUILTIN_SOUNDS.map((sound) => el('option', { key: sound.id, value: sound.id }, t(sound.labelKey)))),
+    ...SOUND_PACKS.map((pack) => el('optgroup', { key: pack.prefix, label: pack.name },
+      packSoundIds(pack).map((id, index) => el('option', { key: id, value: id }, `${pack.name} ${String(index + 1).padStart(2, '0')}`)))),
+  ]
+  /** Sound selector; picking one previews it (and unlocks audio in the gesture). */
+  const soundSelect = (labelKey, field, kind) => el('div', { style: { ...S.col, marginBottom: 10 }, key: field },
+    el('div', { style: S.label }, t(labelKey)),
+    el('select', {
+      style: { ...S.input, ...S.select }, disabled,
+      value: typeof value[field] === 'string' ? value[field] : SOUND_NONE,
+      onChange: (e) => {
+        const id = e.target.value
+        write(field, id)
+        primeSound()
+        if (id !== SOUND_NONE) playSound(id, volumeNow, kind)
+      },
+    }, soundSelectOptions()),
+  )
+
   const notificationsEnabled = value.notifyEnabled !== undefined ? !!value.notifyEnabled : false
   const notificationsPanel = [
     el('div', { style: S.groupFirst, key: 'colors' },
@@ -569,6 +617,22 @@ function PrefsSection(props) {
       notificationsEnabled && permission === 'unsupported' ? el('div', { style: S.error }, t('permissionUnsupported')) : null,
       switchField('notifyForeground', 'notifyForeground', 'notifyForegroundHint', false),
       switchField('notifyAutoHide', 'notifyAutoHide', 'notifyAutoHideHint', true),
+    ),
+    el('div', { style: S.group, key: 'sound' },
+      el('div', { style: S.groupTitle }, t('soundGroup')),
+      el('div', { style: S.hint }, t('soundIntro')),
+      el('div', { style: S.toggle, key: 'volume' },
+        el('span', { style: S.toggleLabel }, t('notifyVolume')),
+        el('input', {
+          type: 'range', min: 0, max: 100, step: 5, disabled,
+          value: Math.round(volumeNow * 100), 'aria-label': t('notifyVolume'),
+          style: { flex: '0 0 auto', width: 140, accentColor: 'var(--dsw-alias-brand-primary)', cursor: 'pointer' },
+          onChange: (e) => write('notifyVolume', Number(e.target.value) / 100),
+        }),
+        el('span', { style: { color: 'var(--dsw-alias-label-tertiary)', fontSize: 12, minWidth: 36, textAlign: 'right' } }, `${Math.round(volumeNow * 100)}%`),
+      ),
+      soundSelect('soundDone', 'notifyDoneSound', 'done'),
+      soundSelect('soundPending', 'notifyPendingSound', 'pending'),
     ),
   ]
 

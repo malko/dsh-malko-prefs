@@ -55,6 +55,12 @@ export const DEFAULT_PREFS = {
   notifyForeground: false,
   /** Keep the notification on screen until dismissed (vs. auto-hide). */
   notifyAutoHide: true,
+  /** Notification sound volume, 0–1. */
+  notifyVolume: 0.6,
+  /** Sound id played on completion (`none` = silent). */
+  notifyDoneSound: 'none',
+  /** Sound id played on a new pending interaction (`none` = silent). */
+  notifyPendingSound: 'none',
 }
 
 /** Preference keys, in declaration order. */

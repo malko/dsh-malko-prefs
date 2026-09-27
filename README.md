@@ -19,11 +19,11 @@ page, and **tab notifications**, packaged as a single dsh bundle.
 - **Model enrichment** — reads the richer model metadata a llama.cpp server
   exposes (`meta.n_ctx`, `architecture.input_modalities`, `aliases`) and fills
   the corresponding `llm-pi-ai` model entries (context window, text/image input).
-- **Notifications** — the browser tab icon turns green when a main session
-  finishes unattended and amber while a question/approval waits for you, and the
-  browser raises a notification on either event. Ported from
-  [`dsh-notice-center`](https://github.com/SCP-QQ/dsh-notice-center) (MIT); no
-  sound library, just the colours and the notifications.
+- **Notifications** — the browser tab icon turns amber while a question/approval
+  waits for you, pulses with a glow while a session works, and turns green when a
+  session finishes unattended; the browser raises a notification on either event
+  with an optional sound. Ported from
+  [`dsh-notice-center`](https://github.com/SCP-QQ/dsh-notice-center) (MIT).
 
 ## Requirements
 
@@ -156,6 +156,14 @@ firing when the tab is not in the foreground (visible **and** focused); enable
 screen** to stop the notification from auto-hiding. Enabling notifications asks
 the browser for permission once.
 
+**Sound** — two selectors (finished / waiting), each defaulting to **No sound**.
+The list is: `No sound`, two built-in synthesized chimes (`Chime Up` / `Chime
+Down`, no asset needed) and 45 bundled opencode sounds (see
+[`assets/audio/README.md`](assets/audio/README.md)); picking one previews it and
+the Host serves the mp3s at `/malko-prefs-sounds/<id>.mp3`. If that route is
+unavailable the player falls back to a chime — but browsers may block audio
+until you have interacted with the page at least once.
+
 | Field | Key | Default |
 |---|---|---|
 | Color the tab icon | `colorsEnabled` | on |
@@ -163,6 +171,8 @@ the browser for permission once.
 | Enable notifications | `notifyEnabled` | **off** |
 | Notify in the foreground | `notifyForeground` | off |
 | Keep on screen | `notifyAutoHide` | off |
+| Volume | `notifyVolume` | `0.6` |
+| Sound on finished / waiting | `notifyDoneSound` / `notifyPendingSound` | `none` (silent) |
 
 > System notifications need a **secure context** — `http://127.0.0.1:PORT` or
 > `localhost`. Opened over a LAN IP the Notification API is unavailable (a
@@ -181,6 +191,7 @@ host plugin  (lib/index.mjs)
   ├─ Config (volatile)  ──▶ settings page "malko-prefs"
   ├─ service malkoPrefs ──▶ live prefs + force queue
   ├─ service malkoModels ──▶ llama.cpp probe (wire def in lib/typert.host.mjs)
+  ├─ /malko-prefs-sounds/<id>.mp3 ──▶ bundled sound library
   └─ /force-compact command
 
 client plugin (lib/client.js)
@@ -220,7 +231,8 @@ node scripts/check.mjs    # static conformance checks
 | `src/typert.host.ts` | the `./typert` export entry `dsh-typert-loader` imports |
 | `src/probe.ts` | `malkoModels` Service (llama.cpp `/models` probe) |
 | `src/client.ts` | settings page (three sub-tabs) |
-| `src/notify.ts` | tab status light + browser notifications (ported from dsh-notice-center) |
+| `src/notify.ts` | tab status light + notifications + sound player (ported from dsh-notice-center) |
+| `assets/audio/` | 45 bundled notification sounds (opencode, MIT) |
 | `src/whale.ts` | the recolored official whale SVG used as the tab icon |
 | `scripts/gen-preset-override.mjs` | regenerates `cordis.patch.yml` from the installed presets |
 | `scripts/check.mjs` | manifest / bundle / cache-safety checks |
@@ -230,7 +242,7 @@ node scripts/check.mjs    # static conformance checks
 The package is publication-ready:
 
 - `private` is removed; `LICENSE` (MIT) and `author` are set; `files` ships
-  `lib/`, `cordis.patch.yml`, `scripts/` and `LICENSE`.
+  `lib/`, `cordis.patch.yml`, `scripts/`, `assets/` and `LICENSE`.
 - `prepublishOnly` runs the build and `scripts/check.mjs`.
 - Conformant bundle: `dsh.bundle.patch`, `exports["./client"]` and
   `exports["./package.json"]`, the client bundle id equals the package name,
@@ -252,5 +264,6 @@ sync before publishing.
   llama.cpp server cross-origin).
 - Browser notifications require a secure context (`127.0.0.1`/`localhost`); the
   tab status light's green/amber state is in-memory and resets on reload.
-- There is no notification sound library (unlike dsh-notice-center) — only the
-  tab colours and the notifications themselves.
+- Notification sound is best-effort: browsers may block audio until the page has
+  had a user gesture, and if the `/malko-prefs-sounds` route is unavailable the
+  player falls back to a synthesized chime.
