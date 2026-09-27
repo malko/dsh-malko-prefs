@@ -422,9 +422,12 @@ export async function apply(ctx) {
     hooks: { prefs: form, modelCatalog: modelForm },
     save: (field, value) => form.set(field, value),
     probe: (args) => {
-      const remote = ctx.remote
-      if (remote?.malkoModels === undefined) throw new Error('the malkoModels remote is not available')
-      return remote.malkoModels.probe(args)
+      // A namespace service is resolved by its full key; reading it off
+      // `ctx.remote` would require an `inject` this plugin cannot declare
+      // before the contribution is mounted.
+      const remote = ctx.get('remote.malkoModels')
+      if (remote === undefined) throw new Error('the malkoModels remote is not available')
+      return remote.probe(args)
     },
     writeModels: (routeId, models) => modelForm.mutate([{ op: 'set', path: ['providers', routeId, 'models'], value: models }]),
   })
