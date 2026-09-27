@@ -100,7 +100,7 @@ export const Config = z.object({
   black: z.string().pattern(HEX_OR_EMPTY).default(DEFAULT_PREFS.black).volatile(),
   notifyEnabled: z.boolean().default(DEFAULT_PREFS.notifyEnabled).volatile(),
   notifyForeground: z.boolean().default(DEFAULT_PREFS.notifyForeground).volatile(),
-  notifyAutoHide: z.boolean().default(DEFAULT_PREFS.notifyAutoHide).volatile(),
+  notifyPersistent: z.boolean().default(DEFAULT_PREFS.notifyPersistent).volatile(),
   notifyVolume: z.number().min(0).max(1).default(DEFAULT_PREFS.notifyVolume).volatile(),
   notifyDoneSound: z.string().default(DEFAULT_PREFS.notifyDoneSound).volatile(),
   notifyPendingSound: z.string().default(DEFAULT_PREFS.notifyPendingSound).volatile(),

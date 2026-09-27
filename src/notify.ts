@@ -21,9 +21,6 @@ const DEFAULT_GREEN = '#22C55E'
 const DEFAULT_AMBER = '#F59E0B'
 const DEFAULT_WORKING = '#3B82F6'
 const HEX = /^#[0-9a-fA-F]{6}$/
-/** Glow animation: frame count and per-frame delay while a session is working. */
-const GLOW_FRAMES = 10
-const GLOW_FRAME_MS = 110
 /** Tool-name cap: longer names would blow the notification body's single line. */
 const TOOL_NAME_LIMIT = 32
 
@@ -214,7 +211,7 @@ export function startStatusLight(ctx, form) {
       black: HEX.test(value.black) ? value.black : undefined,
       notifyEnabled: value.notifyEnabled === true,
       notifyForeground: value.notifyForeground === true,
-      notifyAutoHide: value.notifyAutoHide !== false,
+      persistent: value.notifyPersistent === true,
       volume: normalizeVolume(value.notifyVolume ?? 0.6),
       doneSound: typeof value.notifyDoneSound === 'string' ? value.notifyDoneSound : SOUND_NONE,
       pendingSound: typeof value.notifyPendingSound === 'string' ? value.notifyPendingSound : SOUND_NONE,
@@ -222,46 +219,31 @@ export function startStatusLight(ctx, form) {
   }
 
   // --- favicon ---------------------------------------------------------------
-  const iconLink = () => document.head.querySelector('link[rel~="icon"]')
-  const setHref = (href) => { const link = iconLink(); if (link) link.href = href }
-  /** Original href at start-up; restoring it beats hardcoding a path. */
-  const originalHref = iconLink()?.href ?? DEFAULT_HREF
-  /** Last href we set; `'glow'` while animating; null = official icon. */
+  // DSH ships two icon links (dark/light via `media`); the browser picks one by
+  // the OS color scheme, so every link must be painted and restored together.
+  const iconLinks = () => [...document.head.querySelectorAll('link[rel~="icon"]')]
+  /** Original href of each link we have touched (restore target). */
+  const originalHrefs = new Map()
+  const rememberLinks = () => {
+    for (const link of iconLinks()) if (!originalHrefs.has(link)) originalHrefs.set(link, link.href)
+  }
+  rememberLinks()
+  const paint = (href) => { for (const link of originalHrefs.keys()) link.href = href }
+  /** Last href we set; null = official icons. */
   let applied = null
   const uri = (hex) => `data:image/svg+xml,${encodeURIComponent(whaleSvg(hex))}`
-  const restore = () => { if (applied !== null) { setHref(originalHref); applied = null } }
-
-  // Working state: the favicon cannot animate on its own (browsers do not run
-  // SVG animation in the tab), so we swap pre-rendered glow frames on a timer.
-  let animTimer
-  let animColor
-  const uriGlow = (hex, blur, opacity) => `data:image/svg+xml,${encodeURIComponent(whaleSvg(hex, { blur, opacity }))}`
-  /** One pulsing glow cycle for `hex`, as data-URI frames. */
-  function glowFrames(hex) {
-    const frames = []
-    for (let i = 0; i < GLOW_FRAMES; i += 1) {
-      const phase = (1 - Math.cos((i / GLOW_FRAMES) * Math.PI * 2)) / 2
-      frames.push(uriGlow(hex, 0.8 + phase * 3.2, 0.15 + phase * 0.85))
-    }
-    return frames
+  const restore = () => {
+    if (applied === null) return
+    for (const [link, href] of originalHrefs) link.href = href
+    applied = null
   }
-  function stopAnimation() {
-    if (animTimer !== undefined) { clearInterval(animTimer); animTimer = undefined }
-    animColor = undefined
-  }
-  function startAnimation(hex) {
-    if (animTimer !== undefined && animColor === hex) return
-    stopAnimation()
-    const frames = glowFrames(hex)
-    let index = 0
-    setHref(frames[0])
-    applied = 'glow'
-    animColor = hex
-    animTimer = setInterval(() => {
-      index = (index + 1) % frames.length
-      setHref(frames[index])
-    }, GLOW_FRAME_MS)
-  }
+  // The application may re-create the icon links; pick new ones up.
+  const iconObserver = new MutationObserver(() => {
+    const before = originalHrefs.size
+    rememberLinks()
+    if (originalHrefs.size !== before) sync()
+  })
+  iconObserver.observe(document.head, { childList: true, subtree: true })
 
   // --- notifications ---------------------------------------------------------
   const PENDING_KIND_KEYS = {
@@ -334,7 +316,7 @@ export function startStatusLight(ctx, form) {
         const notification = new Notification(title, {
           body,
           icon: uri(kind === 'done' ? config.green : config.amber),
-          requireInteraction: !config.notifyAutoHide,
+          requireInteraction: config.persistent,
         })
         playSound(kind === 'done' ? config.doneSound : config.pendingSound, config.volume, kind)
         notification.onclick = () => {
@@ -441,19 +423,19 @@ export function startStatusLight(ctx, form) {
     return 'idle'
   }
 
-  /** Apply one tab state to the favicon (static recolor or glow animation). */
+  /** Apply one tab state to the favicon. */
   function applyKind(kind) {
     const config = readConfig()
-    if (kind === 'off') { stopAnimation(); restore(); return }
-    if (kind === 'working') { startAnimation(config.working); return }
-    stopAnimation()
+    if (kind === 'off') { restore(); return }
     const href = kind === 'amber'
       ? uri(config.amber)
-      : kind === 'green'
-        ? uri(config.green)
-        : (config.black ? uri(config.black) : null)
+      : kind === 'working'
+        ? uri(config.working)
+        : kind === 'green'
+          ? uri(config.green)
+          : (config.black ? uri(config.black) : null)
     if (href === null) restore()
-    else if (applied !== href) { setHref(href); applied = href }
+    else if (applied !== href) { paint(href); applied = href }
   }
 
   /** Merge the session rows with the official status store when available. */
@@ -503,8 +485,8 @@ export function startStatusLight(ctx, form) {
   return () => {
     if (notifyTimer !== undefined) clearTimeout(notifyTimer)
     notifyQueue.clear()
-    stopAnimation()
     stopSound()
+    iconObserver.disconnect()
     unsubscribeList()
     unsubscribeForm()
     document.removeEventListener('visibilitychange', onForeground)

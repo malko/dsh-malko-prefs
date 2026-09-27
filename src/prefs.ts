@@ -54,7 +54,7 @@ export const DEFAULT_PREFS = {
   /** Also notify while the page is in the foreground. */
   notifyForeground: false,
   /** Keep the notification on screen until dismissed (vs. auto-hide). */
-  notifyAutoHide: true,
+  notifyPersistent: false,
   /** Notification sound volume, 0–1. */
   notifyVolume: 0.6,
   /** Sound id played on completion (`none` = silent). */

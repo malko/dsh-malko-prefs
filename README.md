@@ -20,9 +20,9 @@ page, and **tab notifications**, packaged as a single dsh bundle.
   exposes (`meta.n_ctx`, `architecture.input_modalities`, `aliases`) and fills
   the corresponding `llm-pi-ai` model entries (context window, text/image input).
 - **Notifications** — the browser tab icon turns amber while a question/approval
-  waits for you, pulses with a glow while a session works, and turns green when a
-  session finishes unattended; the browser raises a notification on either event
-  with an optional sound. Ported from
+  waits for you, blue while a session works, and green when a session finishes
+  unattended; the browser raises a notification on either event with an optional
+  sound. Ported from
   [`dsh-notice-center`](https://github.com/SCP-QQ/dsh-notice-center) (MIT).
 
 ## Requirements
@@ -141,13 +141,13 @@ Two independent features, both driven by the official client signals
 | Colour | Meaning | Clears when |
 |---|---|---|
 | amber | a session waits for you (question / approval / plan review) | you handle it |
-| working | a session is generating — the icon **pulses with a glow** | it stops running |
+| working | a session is generating | it stops running |
 | green | a main session finished while you were away | you open that session / return to the tab |
 | idle | nothing to report (official favicon unless you set a colour) | — |
 
 Priority is amber > working > green > idle, and sub-agent sessions are ignored.
-The glow is animated by swapping pre-rendered SVG frames (browsers do not run
-SVG animation in a favicon).
+All icon links are repainted together (DSH ships a dark and a light favicon
+selected by `prefers-color-scheme`).
 
 **System notifications** — a browser notification on session completion or on a
 new pending interaction, with the session name as the title. Defaults to only
@@ -170,7 +170,7 @@ until you have interacted with the page at least once.
 | Finished / Waiting / Working / Idle color | `green` / `amber` / `working` / `black` | official sidebar colors for green/amber, blue for working; `black` empty = official favicon |
 | Enable notifications | `notifyEnabled` | **off** |
 | Notify in the foreground | `notifyForeground` | off |
-| Keep on screen | `notifyAutoHide` | off |
+| Keep on screen | `notifyPersistent` | off (auto-hide) |
 | Volume | `notifyVolume` | `0.6` |
 | Sound on finished / waiting | `notifyDoneSound` / `notifyPendingSound` | `none` (silent) |
 
