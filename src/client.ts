@@ -46,7 +46,7 @@ const el = React.createElement
 
 const en = {
   title: "Malko's prefs",
-  intro: 'Tunable companion to the official compaction engine.',
+  intro: 'Tunable compaction, llama.cpp model enrichment and notifications.',
   tabCompaction: 'Context compaction',
   tabModels: 'llama.cpp models',
   tabNotifications: 'Notifications',
@@ -146,7 +146,7 @@ const en = {
 
 const zh = {
   title: 'Malko \u504f\u597d',
-  intro: '\u5b98\u65b9\u538b\u7f29\u5f15\u64ce\u7684\u53ef\u8c03\u4f34\u751f\u3002',
+  intro: '\u538b\u7f29\u3001llama.cpp \u6a21\u578b\u8865\u5168\u4e0e\u901a\u77e5\u3002',
   tabCompaction: '\u4e0a\u4e0b\u6587\u538b\u7f29',
   tabModels: 'llama.cpp \u6a21\u578b',
   tabNotifications: '\u901a\u77e5',
