@@ -84,6 +84,8 @@ Adds a section to Settings, split into three sub-tabs: **Context compaction**,
 
 ### Context compaction
 
+![Context compaction settings](docs/images/settings-compaction.png)
+
 ### Compaction threshold
 
 | Field | Meaning |
@@ -131,10 +133,14 @@ server** button reads `GET {baseURL}/models` and completes the model entries
 `architecture.input_modalities`). Existing user values are never overwritten;
 new providers adopt the whole list.
 
+![llama.cpp models settings](docs/images/settings-models.png)
+
 ### Notifications
 
 Two independent features, both driven by the official client signals
 (`sessions`, `uiSession.sessionStatus`); nothing is persisted beyond the config.
+
+![Notifications settings](docs/images/settings-notifications.png)
 
 **Tab status light** — recolours the browser tab icon:
 
@@ -163,6 +169,8 @@ Down`, no asset needed) and 45 bundled opencode sounds (see
 the Host serves the mp3s at `/malko-prefs-sounds/<id>.mp3`. If that route is
 unavailable the player falls back to a chime — but browsers may block audio
 until you have interacted with the page at least once.
+
+![Sound settings](docs/images/settings-notifications-sounds.png)
 
 | Field | Key | Default |
 |---|---|---|
