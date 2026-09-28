@@ -1,6 +1,6 @@
 {
   "name": "dsh-malko-prefs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Personal dsh preferences: a tunable companion to the official compaction engine (threshold, retention, summarization model/reasoning, turn-end compaction) and llama.cpp model-enrichment for the Models page",
   "type": "module",
   "main": "lib/index.mjs",
