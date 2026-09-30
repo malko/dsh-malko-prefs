@@ -1,14 +1,22 @@
 {
   "name": "dsh-malko-prefs",
-  "version": "0.2.0",
-  "description": "Personal dsh preferences: a tunable companion to the official compaction engine (threshold, retention, summarization model/reasoning, turn-end compaction) and llama.cpp model-enrichment for the Models page",
+  "version": "0.3.0",
+  "description": "Personal dsh preferences: a tunable companion to the official compaction engine (threshold, retention, summarization model/reasoning, turn-end compaction), llama.cpp model import for the Models page, and tab/notification helpers (status-light favicon, browser notifications with optional sounds).",
   "type": "module",
   "main": "lib/index.mjs",
   "exports": {
-    ".": { "default": "./lib/index.mjs" },
-    "./compaction": { "default": "./lib/compaction.mjs" },
-    "./client": { "default": "./lib/client.js" },
-    "./typert": { "default": "./lib/typert.host.mjs" },
+    ".": {
+      "default": "./lib/index.mjs"
+    },
+    "./compaction": {
+      "default": "./lib/compaction.mjs"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./typert": {
+      "default": "./lib/typert.host.mjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -52,11 +60,21 @@
     "@deepseek-ai/dsh-typert-protocol": ">=0.1.7-rc.1"
   },
   "peerDependenciesMeta": {
-    "@deepseek-ai/cordis": { "optional": true },
-    "@deepseek-ai/schemastery": { "optional": true },
-    "@deepseek-ai/dsh-compaction-basic": { "optional": true },
-    "@deepseek-ai/dsh-llm": { "optional": true },
-    "@deepseek-ai/dsh-typert-protocol": { "optional": true }
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-compaction-basic": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-typert-protocol": {
+      "optional": true
+    }
   },
   "dependencies": {
     "zod": "4.5.4"
@@ -64,7 +82,8 @@
   "devDependencies": {
     "@deepseek-ai/dsh-typert-protocol": "0.1.7-rc.1",
     "@deepseek-ai/schemastery": "~3.18.4",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "@deepseek-ai/cordis": "~4.0.4"
   },
   "dsh": {
     "bundle": {
