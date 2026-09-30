@@ -84,11 +84,18 @@ const en = {
   maxOverflowRetries: 'Overflow recovery attempts',
   // Models
   modelsTitle: 'llama.cpp models',
-  modelsIntro: 'Read context window and input modalities from the server and fill the model entries of a pi-ai provider.',
-  enrich: 'Enrich from server',
-  enriching: 'Enriching\u2026',
+  modelsIntro: 'Fetch the models a provider exposes, pick the ones to import and review the changes before applying.',
+  enrich: 'Fetch from server',
+  enriching: 'Fetching\u2026',
   noBaseUrl: 'No endpoint configured for this provider.',
-  enriched: 'Enriched {count} model(s).',
+  applied: 'Imported {count} model(s).',
+  previewTitle: 'Review import',
+  previewHint: 'Check the models to import from the server.',
+  previewNew: 'new model',
+  previewNoChange: 'no change',
+  apply: 'Import ({count})',
+  cancel: 'Cancel',
+  noModels: 'The server returned no models.',
   // Notifications
   colorsGroup: 'Tab status light',
   colorsIntro: 'The browser tab icon reflects the session state: green = finished, amber = waiting for you.',
@@ -188,11 +195,18 @@ const zh = {
   compactionRetries: '\u989d\u5916\u538b\u7f29\u5c1d\u8bd5',
   maxOverflowRetries: '\u6ea2\u51fa\u6062\u590d\u5c1d\u8bd5',
   modelsTitle: 'llama.cpp \u6a21\u578b',
-  modelsIntro: '\u4ece\u670d\u52a1\u5668\u8bfb\u53d6\u4e0a\u4e0b\u6587\u7a97\u53e3\u4e0e\u8f93\u5165\u6a21\u6001\uff0c\u5e76\u586b\u5145 pi-ai \u63d0\u4f9b\u5546\u7684\u6a21\u578b\u6761\u76ee\u3002',
-  enrich: '\u4ece\u670d\u52a1\u5668\u5bcc\u5316',
-  enriching: '\u6b63\u5728\u5bcc\u5316\u2026',
+  modelsIntro: '\u4ece\u670d\u52a1\u5668\u83b7\u53d6\u6a21\u578b\u5217\u8868\uff0c\u52fe\u9009\u8981\u5bfc\u5165\u7684\u6a21\u578b\uff0c\u786e\u8ba4\u53d8\u66f4\u540e\u5e94\u7528\u3002',
+  enrich: '\u4ece\u670d\u52a1\u5668\u83b7\u53d6',
+  enriching: '\u6b63\u5728\u83b7\u53d6\u2026',
   noBaseUrl: '\u8be5\u63d0\u4f9b\u5546\u672a\u914d\u7f6e\u7aef\u70b9\u3002',
-  enriched: '\u5df2\u5bcc\u5316 {count} \u4e2a\u6a21\u578b\u3002',
+  applied: '\u5df2\u5bfc\u5165 {count} \u4e2a\u6a21\u578b\u3002',
+  previewTitle: '\u786e\u8ba4\u5bfc\u5165',
+  previewHint: '\u52fe\u9009\u8981\u4ece\u670d\u52a1\u5668\u5bfc\u5165\u7684\u6a21\u578b\u3002',
+  previewNew: '\u65b0\u6a21\u578b',
+  previewNoChange: '\u65e0\u53d8\u5316',
+  apply: '\u5bfc\u5165\uff08{count}\uff09',
+  cancel: '\u53d6\u6d88',
+  noModels: '\u670d\u52a1\u5668\u672a\u8fd4\u56de\u4efb\u4f55\u6a21\u578b\u3002',
   colorsGroup: '\u6807\u7b7e\u9875\u72b6\u6001\u706f',
   colorsIntro: '\u6807\u7b7e\u9875\u56fe\u6807\u968f\u4f1a\u8bdd\u72b6\u6001\u53d8\u8272\uff1a\u7eff = \u5df2\u5b8c\u6210\uff0c\u7425\u73c0 = \u7b49\u4f60\u5904\u7406\u3002',
   colorsEnabled: '\u542f\u7528\u56fe\u6807\u53d8\u8272',
@@ -315,6 +329,9 @@ const S = {
   rowTwo: { display: 'flex', gap: 12 },
   rowFlex: { display: 'flex', gap: 8, alignItems: 'center' },
   col: { flex: 1, minWidth: 0 },
+  providerBlock: { marginBottom: 12 },
+  preview: { marginTop: 8, padding: 10, border: '0.5px solid var(--dsw-alias-border-l4)', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-1)' },
+  previewRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer' },
   toggle: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 },
   toggleText: { display: 'flex', flexDirection: 'column', gap: 2 },
   toggleLabel: { fontWeight: 600, color: 'var(--dsw-alias-label-primary)' },
@@ -341,6 +358,9 @@ function PrefsSection(props) {
   const [note, setNote] = React.useState('')
   const [enrichNote, setEnrichNote] = React.useState('')
   const [busyRoute, setBusyRoute] = React.useState('')
+  const [preview, setPreview] = React.useState(null)
+  const [stickyBg, setStickyBg] = React.useState('')
+  const wrapRef = React.useRef(null)
   const valueRef = snap && snap.value
   React.useEffect(() => {
     setDraft({
@@ -350,6 +370,16 @@ function PrefsSection(props) {
     })
     setNote('')
   }, [valueRef])
+  // The settings panel scrolls; pick its background so the sticky tab bar does
+  // not show content scrolling underneath.
+  React.useEffect(() => {
+    let node = wrapRef.current?.parentElement ?? null
+    while (node !== null && node !== document.body) {
+      const bg = getComputedStyle(node).backgroundColor
+      if (bg !== '' && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') { setStickyBg(bg); break }
+      node = node.parentElement
+    }
+  }, [])
 
   if (status === 'loading') return el('div', { style: S.hint }, t('loading'))
   if (status === 'unavailable') return el('div', { style: S.hint }, t('unavailable'))
@@ -432,32 +462,29 @@ function PrefsSection(props) {
     void requestNotificationPermission().then(setPermission)
   }
 
-  const enrichProvider = async (routeId, profile) => {
+  /** Fetch a provider's models and build a per-model review of what importing would change. */
+  const fetchPreview = async (routeId, profile) => {
     setBusyRoute(routeId)
     setEnrichNote('')
+    setPreview(null)
     try {
-      const response = await probe({ args: { baseURL: profile.baseURL } })
+      const response = await probe({ baseURL: profile.baseURL })
       const found = Array.isArray(response?.models) ? response.models : []
-      const byId = new Map(found.map((m) => [m.id, m]))
       const existing = Array.isArray(profile.models) ? profile.models : []
-      const merged = existing.length === 0
-        ? found.map((m) => ({
-            id: m.id,
-            name: m.name,
-            ...(m.contextWindow === undefined ? {} : { contextWindow: m.contextWindow }),
-            ...(m.maxTokens === undefined ? {} : { maxTokens: m.maxTokens }),
-            ...(m.input === undefined ? {} : { input: m.input }),
-          }))
-        : existing.map((m) => {
-            const hit = byId.get(m.id)
-            if (hit === undefined) return m
-            const next = { ...m }
-            if (next.contextWindow === undefined && hit.contextWindow !== undefined) next.contextWindow = hit.contextWindow
-            if (next.input === undefined && hit.input !== undefined) next.input = hit.input
-            return next
-          })
-      await writeModels(routeId, merged)
-      setEnrichNote(t('enriched', { count: merged.length }))
+      const byId = new Map(existing.map((m) => [m.id, m]))
+      const rows = found.map((m) => {
+        const cur = byId.get(m.id)
+        if (cur === undefined) return { id: m.id, name: m.name, isNew: true, changes: [], value: m, selected: true }
+        const changes = []
+        if (m.contextWindow !== undefined && cur.contextWindow !== m.contextWindow) changes.push({ field: 'contextWindow', from: cur.contextWindow, to: m.contextWindow })
+        if (m.maxTokens !== undefined && cur.maxTokens !== m.maxTokens) changes.push({ field: 'maxTokens', from: cur.maxTokens, to: m.maxTokens })
+        const fromInput = Array.isArray(cur.input) ? cur.input.join('+') : undefined
+        const toInput = Array.isArray(m.input) ? m.input.join('+') : undefined
+        if (toInput !== undefined && toInput !== fromInput) changes.push({ field: 'input', from: fromInput, to: toInput })
+        return { id: m.id, name: m.name, isNew: false, changes, value: m, selected: changes.length > 0 }
+      })
+      if (rows.length === 0) { setEnrichNote(t('noModels')); return }
+      setPreview({ routeId, rows })
     } catch (error) {
       setEnrichNote(t('errorPrefix') + String(error && error.message ? error.message : error))
     } finally {
@@ -465,18 +492,81 @@ function PrefsSection(props) {
     }
   }
 
+  const togglePreview = (id) => setPreview((p) => (p === null ? p : { ...p, rows: p.rows.map((r) => (r.id === id ? { ...r, selected: !r.selected } : r)) }))
+
+  /** Import the selected server values (update existing entries, append new ones). */
+  const applyPreview = async () => {
+    const p = preview
+    if (p === null) return
+    const profile = (providers !== null && typeof providers === 'object' ? providers[p.routeId] : undefined) ?? {}
+    const existing = Array.isArray(profile.models) ? profile.models : []
+    const selectedById = new Map(p.rows.filter((r) => r.selected).map((r) => [r.id, r]))
+    const next = existing.map((m) => {
+      const row = selectedById.get(m.id)
+      if (row === undefined || row.isNew) return m
+      const v = row.value
+      return {
+        ...m,
+        ...(v.contextWindow === undefined ? {} : { contextWindow: v.contextWindow }),
+        ...(v.maxTokens === undefined ? {} : { maxTokens: v.maxTokens }),
+        ...(v.input === undefined ? {} : { input: [...v.input] }),
+      }
+    })
+    for (const row of p.rows) {
+      if (!row.isNew || !row.selected) continue
+      const v = row.value
+      next.push({
+        id: v.id,
+        name: v.name,
+        ...(v.contextWindow === undefined ? {} : { contextWindow: v.contextWindow }),
+        ...(v.maxTokens === undefined ? {} : { maxTokens: v.maxTokens }),
+        ...(v.input === undefined ? {} : { input: [...v.input] }),
+      })
+    }
+    try {
+      await writeModels(p.routeId, next)
+      setEnrichNote(t('applied', { count: selectedById.size }))
+      setPreview(null)
+    } catch (error) {
+      setEnrichNote(t('errorPrefix') + String(error && error.message ? error.message : error))
+    }
+  }
+
+  /** One row of the import review: checkbox, model name, and the pending changes. */
+  const changeText = (row) => {
+    const fmt = (v) => (v === undefined || v === null || v === '' ? '\u2014' : String(v))
+    if (row.isNew) return t('previewNew')
+    if (row.changes.length === 0) return t('previewNoChange')
+    return row.changes.map((c) => `${c.field}: ${fmt(c.from)} \u2192 ${fmt(c.to)}`).join('  \u00b7  ')
+  }
+
+  const previewPanel = (p) => {
+    const selected = p.rows.filter((r) => r.selected).length
+    return el('div', { style: S.preview, key: 'preview' },
+      el('div', { style: S.groupTitle }, t('previewTitle')),
+      el('div', { style: S.hint }, t('previewHint')),
+      ...p.rows.map((row) => el('label', { key: row.id, style: S.previewRow },
+        el('input', { type: 'checkbox', checked: row.selected, disabled, onChange: () => togglePreview(row.id) }),
+        el('span', { style: { fontWeight: 600, maxWidth: 200, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, row.name),
+        el('span', { style: { color: 'var(--dsw-alias-label-tertiary)', fontSize: 12 } }, changeText(row)),
+      )),
+      el('div', { style: { ...S.rowFlex, marginTop: 8 } },
+        el(Button, { variant: 'primary', size: 'sm', disabled: disabled || selected === 0, onClick: () => { void applyPreview() } }, t('apply', { count: selected })),
+        el(Button, { variant: 'ghost', size: 'sm', disabled, onClick: () => setPreview(null) }, t('cancel')),
+      ),
+    )
+  }
+
   const providerRows = Object.entries(providers !== null && typeof providers === 'object' ? providers : {}).map(([routeId, profile]) => {
     const baseURL = profile !== null && typeof profile === 'object' && typeof profile.baseURL === 'string' ? profile.baseURL : ''
-    return el('div', { key: routeId, style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 } },
-      el('span', { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, `${routeId}${baseURL ? ` — ${baseURL}` : ''}`),
-      baseURL
-        ? el(Button, {
-            variant: 'outline',
-            size: 'sm',
-            disabled: busyRoute === routeId || disabled,
-            onClick: () => { void enrichProvider(routeId, profile) },
-          }, busyRoute === routeId ? t('enriching') : t('enrich'))
-        : el('span', { style: { color: 'var(--dsw-alias-label-tertiary)', fontSize: 12, flexShrink: 0 } }, t('noBaseUrl')),
+    return el('div', { key: routeId, style: S.providerBlock },
+      el('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+        el('span', { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, `${routeId}${baseURL ? ` — ${baseURL}` : ''}`),
+        baseURL
+          ? el(Button, { variant: 'outline', size: 'sm', disabled: busyRoute === routeId || disabled, onClick: () => { void fetchPreview(routeId, profile) } }, busyRoute === routeId ? t('enriching') : t('enrich'))
+          : el('span', { style: { color: 'var(--dsw-alias-label-tertiary)', fontSize: 12, flexShrink: 0 } }, t('noBaseUrl')),
+      ),
+      preview !== null && preview.routeId === routeId ? previewPanel(preview) : null,
     )
   })
 
@@ -655,17 +745,27 @@ function PrefsSection(props) {
 
   const panels = { compaction: compactionPanel, models: modelsPanel, notifications: notificationsPanel }
 
-  return el('div', { style: S.wrap },
+  return el('div', { ref: wrapRef, style: S.wrap },
     el('div', { style: S.groupTitle }, t('title')),
-    el('div', { style: S.hint }, t('intro')),
-    el('div', { style: S.tabs },
+    el('div', { style: { ...S.hint, marginBottom: 8 } }, t('intro')),
+    el('div', {
+      style: {
+        ...S.tabs,
+        position: 'sticky',
+        top: 0,
+        zIndex: 5,
+        paddingTop: 4,
+        paddingBottom: 8,
+        background: stickyBg || 'var(--dsw-alias-bg-layer-3, #2c2c2e)',
+      },
+    },
       el(SegmentedControl, {
         id: TABS_ID,
         value: tab,
         options: [
           { value: 'compaction', label: t('tabCompaction') },
-          { value: 'models', label: t('tabModels') },
           { value: 'notifications', label: t('tabNotifications') },
+          { value: 'models', label: t('tabModels') },
         ],
         onChange: setTab,
         label: t('title'),
@@ -694,13 +794,19 @@ export async function apply(ctx) {
   const injected = () => ({
     hooks: { prefs: form, modelCatalog: modelForm },
     save: (field, value) => form.set(field, value),
-    probe: (args) => {
+    probe: async (args) => {
       // A namespace service is resolved by its full key; reading it off
       // `ctx.remote` would require an `inject` this plugin cannot declare
       // before the contribution is mounted.
       const remote = ctx.get('remote.malkoModels')
       if (remote === undefined) throw new Error('the malkoModels remote is not available')
-      return remote.probe(args)
+      const result = await remote.probe(args)
+      // Remote methods resolve to a `{ ok, value }` / `{ ok, error }` envelope.
+      if (result !== null && typeof result === 'object' && 'ok' in result) {
+        if (result.ok !== true) throw result.error ?? new Error('the malkoModels probe failed')
+        return result.value
+      }
+      return result
     },
     writeModels: (routeId, models) => modelForm.mutate([{ op: 'set', path: ['providers', routeId, 'models'], value: models }]),
   })
