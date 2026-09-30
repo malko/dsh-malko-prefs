@@ -177,12 +177,11 @@ until you have interacted with the page at least once.
 |---|---|---|
 | Color the tab icon | `colorsEnabled` | on |
 | Finished / Waiting / Working / Idle color | `green` / `amber` / `working` / `black` | official sidebar colors for green/amber, blue for working; `black` empty = official favicon |
-| Enable notifications | `notifyEnabled` | **off** |
-| Notify in the foreground | `notifyForeground` | off |
-| Keep finished on screen | `notifyDonePersistent` | off (auto-hide) |
-| Keep waiting on screen | `notifyPendingPersistent` | off (auto-hide) |
-| Volume | `notifyVolume` | `0.6` |
-| Sound on finished / waiting | `notifyDoneSound` / `notifyPendingSound` | `none` (silent) |
+| Enable notifications (master) | `notifyEnabled` | **off** |
+| Notify in the foreground (global) | `notifyForeground` | off |
+| Volume (global) | `notifyVolume` | `0.6` |
+| Finished: notify / keep on screen / sound | `notifyDoneEnabled` / `notifyDonePersistent` / `notifyDoneSound` | on / off / `none` |
+| Waiting: notify / keep on screen / sound | `notifyPendingEnabled` / `notifyPendingPersistent` / `notifyPendingSound` | on / off / `none` |
 
 > System notifications need a **secure context** — `http://127.0.0.1:PORT` or
 > `localhost`. Opened over a LAN IP the Notification API is unavailable (a
