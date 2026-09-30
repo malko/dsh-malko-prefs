@@ -93,6 +93,7 @@ const en = {
   previewHint: 'Check the models to import from the server.',
   previewNew: 'new model',
   previewNoChange: 'no change',
+  selectAll: 'Select all',
   apply: 'Import ({count})',
   cancel: 'Cancel',
   noModels: 'The server returned no models.',
@@ -204,6 +205,7 @@ const zh = {
   previewHint: '\u52fe\u9009\u8981\u4ece\u670d\u52a1\u5668\u5bfc\u5165\u7684\u6a21\u578b\u3002',
   previewNew: '\u65b0\u6a21\u578b',
   previewNoChange: '\u65e0\u53d8\u5316',
+  selectAll: '\u5168\u9009',
   apply: '\u5bfc\u5165\uff08{count}\uff09',
   cancel: '\u53d6\u6d88',
   noModels: '\u670d\u52a1\u5668\u672a\u8fd4\u56de\u4efb\u4f55\u6a21\u578b\u3002',
@@ -496,6 +498,7 @@ function PrefsSection(props) {
   }
 
   const togglePreview = (id) => setPreview((p) => (p === null ? p : { ...p, rows: p.rows.map((r) => (r.id === id ? { ...r, selected: !r.selected } : r)) }))
+  const toggleAllPreview = (next) => setPreview((p) => (p === null ? p : { ...p, rows: p.rows.map((r) => ({ ...r, selected: next })) }))
 
   /** Import the selected server values (update existing entries, append new ones). */
   const applyPreview = async () => {
@@ -545,9 +548,21 @@ function PrefsSection(props) {
 
   const previewPanel = (p) => {
     const selected = p.rows.filter((r) => r.selected).length
+    const all = p.rows.length > 0 && selected === p.rows.length
     return el('div', { style: S.preview, key: 'preview' },
       el('div', { style: S.groupTitle }, t('previewTitle')),
       el('div', { style: S.hint }, t('previewHint')),
+      el('label', { style: { ...S.previewRow, borderBottom: '0.5px solid var(--dsw-alias-border-l3)', fontWeight: 600 } },
+        el('input', {
+          type: 'checkbox',
+          checked: all,
+          disabled,
+          ref: (node) => { if (node) node.indeterminate = !all && selected > 0 },
+          onChange: () => toggleAllPreview(!all),
+          'aria-label': t('selectAll'),
+        }),
+        el('span', null, t('selectAll')),
+      ),
       ...p.rows.map((row) => el('label', { key: row.id, style: S.previewRow },
         el('input', { type: 'checkbox', checked: row.selected, disabled, onChange: () => togglePreview(row.id) }),
         el('span', { style: { fontWeight: 600, maxWidth: 200, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, row.name),
