@@ -211,7 +211,9 @@ export function startStatusLight(ctx, form) {
       black: HEX.test(value.black) ? value.black : undefined,
       notifyEnabled: value.notifyEnabled === true,
       notifyForeground: value.notifyForeground === true,
+      doneEnabled: value.notifyDoneEnabled !== false,
       donePersistent: value.notifyDonePersistent === true,
+      pendingEnabled: value.notifyPendingEnabled !== false,
       pendingPersistent: value.notifyPendingPersistent === true,
       volume: normalizeVolume(value.notifyVolume ?? 0.6),
       doneSound: typeof value.notifyDoneSound === 'string' ? value.notifyDoneSound : SOUND_NONE,
@@ -278,7 +280,10 @@ export function startStatusLight(ctx, form) {
 
   /** Queue one notification (skipped while disabled; deduped; 300 ms window). */
   function queueNotification(kind, sessionId, label, typeLabel, durationMs) {
-    if (!readConfig().notifyEnabled) return
+    const config = readConfig()
+    if (!config.notifyEnabled) return
+    if (kind === 'done' && !config.doneEnabled) return
+    if (kind === 'pending' && !config.pendingEnabled) return
     const key = sessionId + ':' + kind
     if (notified.has(key)) return
     notified.add(key)

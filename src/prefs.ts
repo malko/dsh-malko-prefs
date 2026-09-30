@@ -51,10 +51,14 @@ export const DEFAULT_PREFS = {
   black: '',
   /** Browser notification master switch (opt-in). */
   notifyEnabled: false,
-  /** Also notify while the page is in the foreground. */
+  /** Also notify while the page is in the foreground (global). */
   notifyForeground: false,
+  /** Send a notification when a session finishes. */
+  notifyDoneEnabled: true,
   /** Keep the finished notification on screen until dismissed (vs. auto-hide). */
   notifyDonePersistent: false,
+  /** Send a notification when something awaits the user. */
+  notifyPendingEnabled: true,
   /** Keep the waiting notification on screen until dismissed (vs. auto-hide). */
   notifyPendingPersistent: false,
   /** Notification sound volume, 0–1. */
