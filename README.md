@@ -162,21 +162,25 @@ Priority is amber > working > green > idle, and sub-agent sessions are ignored.
 All icon links are repainted together (DSH ships a dark and a light favicon
 selected by `prefers-color-scheme`).
 
-**System notifications** — a browser notification on session completion or on a
-new pending interaction, with the session name as the title. Defaults to only
-firing when the tab is not in the foreground (visible **and** focused); enable
-**Notify in the foreground** to also fire while you watch, and one of the two
-per-type **Keep on screen** toggles (finished / waiting) to stop that
-notification from auto-hiding. Enabling notifications asks
-the browser for permission once.
+**System notifications** — settings are grouped by notification type. One
+global master switch (**Enable notifications**, opt-in; the browser asks for
+permission once), one global **Notify in the foreground** (off = only fire when
+the tab is not visible and focused) and one global **Volume**. Then one group
+per type — **When a session finishes** and **While waiting for you** (question /
+approval / plan review) — each with its own **Notify** enable, **Keep on screen**
+(stay until dismissed) and sound.
 
-**Sound** — two selectors (finished / waiting), each defaulting to **No sound**.
-The list is: `No sound`, two built-in synthesized chimes (`Chime Up` / `Chime
-Down`, no asset needed) and 45 bundled opencode sounds (see
-[`assets/audio/README.md`](assets/audio/README.md)); picking one previews it and
-the Host serves the mp3s at `/malko-prefs-sounds/<id>.mp3`. If that route is
-unavailable the player falls back to a chime — but browsers may block audio
-until you have interacted with the page at least once.
+**Sound** (per type) — each group's selector defaults to **No sound** (both
+defaults are silent on a fresh install). The list is: `No sound`, two built-in
+synthesized chimes (`Chime Up` / `Chime Down`, no asset needed) and 45 bundled
+opencode sounds (see [`assets/audio/README.md`](assets/audio/README.md)); picking
+one previews it and the Host serves the mp3s at `/malko-prefs-sounds/<id>.mp3`.
+If that route is unavailable the player falls back to a chime — but browsers may
+block audio until you have interacted with the page at least once.
+
+The sound is **decoupled from the banner**: once a sound is chosen for a type it
+plays on that event (completion / waiting) even when notifications — or that
+type — are disabled; with **No sound** nothing plays.
 
 ![Sound settings](docs/images/settings-notifications-sounds.png)
 
