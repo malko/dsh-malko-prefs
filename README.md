@@ -79,7 +79,8 @@ Rollback: `dsh plugin --profile web remove dsh-malko-prefs` (then restart).
 ## Settings — “Malko's prefs”
 
 Adds a section to Settings, split into three sub-tabs: **Context compaction**,
-**llama.cpp models**, and **Notifications**. All fields are applied **live**
+**Notifications** and **llama.cpp models** (the tab bar stays pinned while the
+panel scrolls). All fields are applied **live**
 (no restart).
 
 ### Context compaction
@@ -127,11 +128,13 @@ recent-context budget.
 
 ### llama.cpp models
 
-For every `llm-pi-ai` provider that declares a `baseURL`, an **Enrich from
-server** button reads `GET {baseURL}/models` and completes the model entries
-(context window from `meta.n_ctx`/`n_ctx_train`, input modalities from
-`architecture.input_modalities`). Existing user values are never overwritten;
-new providers adopt the whole list.
+For every `llm-pi-ai` provider that declares a `baseURL`, **Fetch from server**
+reads `GET {baseURL}/models`. It then shows a **review of every discovered
+model** and what importing would change: context window (from
+`meta.n_ctx`/`n_ctx_train`), output cap, and input modalities (from
+`architecture.input_modalities`); models that do not exist yet are marked *new
+model*. Tick the models you want and click **Import** — only the selected ones
+are written (existing entries are updated, new ones appended).
 
 ![llama.cpp models settings](docs/images/settings-models.png)
 
