@@ -134,7 +134,10 @@ model** and what importing would change: context window (from
 `meta.n_ctx`/`n_ctx_train`), output cap, and input modalities (from
 `architecture.input_modalities`); models that do not exist yet are marked *new
 model*. Tick the models you want and click **Import** — only the selected ones
-are written (existing entries are updated, new ones appended).
+are written (existing entries are updated, new ones appended). The request
+authenticates as the provider does: the endpoint's `apiKeyEnv` credential is
+resolved (dsh credentials, then the host environment) and sent as
+`Authorization: Bearer …`, so an api-key-protected server works.
 
 ![llama.cpp models settings](docs/images/settings-models.png)
 
