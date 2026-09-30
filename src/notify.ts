@@ -240,11 +240,12 @@ export function startStatusLight(ctx, form) {
     for (const [link, href] of originalHrefs) link.href = href
     applied = null
   }
-  // The application may re-create the icon links; pick new ones up.
+  // The application may re-create the icon links; pick new ones up (and repaint
+  // them with the current state, which the `applied` guard would otherwise skip).
   const iconObserver = new MutationObserver(() => {
     const before = originalHrefs.size
     rememberLinks()
-    if (originalHrefs.size !== before) sync()
+    if (originalHrefs.size !== before) { applied = null; sync() }
   })
   iconObserver.observe(document.head, { childList: true, subtree: true })
 

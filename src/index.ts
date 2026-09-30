@@ -50,8 +50,15 @@ export function buildSoundRoutes() {
     kind: 'prefix',
     path: SOUND_ROUTE,
     handler: async (req, res) => {
-      const name = decodeURIComponent(String(req.url ?? '').slice(SOUND_ROUTE.length)).replace(/^\/+/, '')
       const headers = { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }
+      let name
+      try {
+        name = decodeURIComponent(String(req.url ?? '').slice(SOUND_ROUTE.length)).replace(/^\/+/, '')
+      } catch {
+        res.writeHead(404, headers)
+        res.end('Not Found')
+        return
+      }
       if (!SOUND_FILE.test(name)) {
         res.writeHead(404, headers)
         res.end('Not Found')

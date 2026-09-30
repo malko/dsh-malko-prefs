@@ -128,8 +128,6 @@ const en = {
   sound: 'Sound',
   soundHint: 'Plays on the event even when notifications are off.',
   notifyVolume: 'Volume',
-  soundDone: 'On session finished',
-  soundPending: 'While waiting for you',
   soundNoSound: 'No sound',
   soundPackBuiltin: 'Built-in',
   soundBuiltinUp: 'Chime Up',
@@ -150,8 +148,6 @@ const en = {
   pendingQuestionFill: 'Type an answer',
   pendingQuestionBatch: '{count} questions',
   // Shared
-  save: 'Save',
-  saved: 'Saved.',
   invalidToken: 'Enter a number or a k/M suffix value (e.g. 130k).',
   invalidHex: 'Color must be #RRGGBB.',
   errorPrefix: 'Error: ',
@@ -240,8 +236,6 @@ const zh = {
   sound: '\u63d0\u793a\u97f3',
   soundHint: '\u5373\u4f7f\u5173\u95ed\u901a\u77e5\uff0c\u4e8b\u4ef6\u53d1\u751f\u65f6\u4e5f\u4f1a\u64ad\u653e\u3002',
   notifyVolume: '\u97f3\u91cf',
-  soundDone: '\u4f1a\u8bdd\u5b8c\u6210\u65f6',
-  soundPending: '\u7b49\u4f60\u5904\u7406\u65f6',
   soundNoSound: '\u65e0\u58f0',
   soundPackBuiltin: '\u5185\u7f6e',
   soundBuiltinUp: 'Chime Up',
@@ -261,8 +255,6 @@ const zh = {
   pendingQuestionMulti: '\u8bf7\u4f60\u591a\u9009',
   pendingQuestionFill: '\u8bf7\u4f60\u586b\u5199',
   pendingQuestionBatch: '\u5411\u4f60\u63d0\u95ee\uff08{count} \u4e2a\uff09',
-  save: '\u4fdd\u5b58',
-  saved: '\u5df2\u4fdd\u5b58\u3002',
   invalidToken: '\u8bf7\u8f93\u5165\u6570\u5b57\u6216\u5e26 k/M \u540e\u7f00\u7684\u503c\uff08\u5982 130k\uff09\u3002',
   invalidHex: '\u989c\u8272\u683c\u5f0f\u5e94\u4e3a #RRGGBB\u3002',
   errorPrefix: '\u9519\u8bef\uff1a ',
@@ -364,6 +356,7 @@ function PrefsSection(props) {
   const [busyRoute, setBusyRoute] = React.useState('')
   const [preview, setPreview] = React.useState(null)
   const [stickyBg, setStickyBg] = React.useState('')
+  const [hexDrafts, setHexDrafts] = React.useState({})
   const wrapRef = React.useRef(null)
   const valueRef = snap && snap.value
   React.useEffect(() => {
@@ -372,6 +365,7 @@ function PrefsSection(props) {
       contextWindowTokens: valueRef && valueRef.contextWindowTokens ? String(valueRef.contextWindowTokens) : '',
       retainTokens: valueRef && valueRef.retainTokens ? String(valueRef.retainTokens) : '',
     })
+    setHexDrafts({})
     setNote('')
   }, [valueRef])
   // The settings panel scrolls; pick its background so the sticky tab bar does
@@ -432,28 +426,42 @@ function PrefsSection(props) {
     el('input', { type: 'number', step: 'any', style: S.input, ...num(field, fallback) }),
     hintKey ? el('div', { style: S.hint }, t(hintKey)) : null,
   )
+  /** Commit a typed hex value (empty clears an optional colour). */
+  const commitHex = (field, optional, text) => {
+    setNote('')
+    const stored = typeof value[field] === 'string' ? value[field] : ''
+    const next = String(text ?? '').trim()
+    if (next === '') {
+      if (optional) write(field, '')
+      else setHexDrafts((d) => ({ ...d, [field]: stored }))
+      return
+    }
+    if (HEX.test(next)) { write(field, next); return }
+    setNote(t('invalidHex'))
+    setHexDrafts((d) => ({ ...d, [field]: stored }))
+  }
   /** Colour row: native picker + editable hex, optional clear (empty = official). */
   const colorField = (labelKey, field, fallbackHex, optional, hintKey) => {
     const current = typeof value[field] === 'string' ? value[field] : ''
     const shown = current !== '' ? current : (fallbackHex ?? '#000000')
+    const text = hexDrafts[field] !== undefined ? hexDrafts[field] : current
+    const typed = () => (hexDrafts[field] !== undefined ? hexDrafts[field] : current)
     return el('div', { style: { ...S.col, marginBottom: 10 }, key: field },
       el('div', { style: S.label }, t(labelKey)),
       el('div', { style: S.rowFlex },
         el('input', {
           type: 'color', value: shown, disabled, style: S.color,
-          onChange: (e) => write(field, e.target.value),
+          onChange: (e) => { write(field, e.target.value); setHexDrafts((d) => ({ ...d, [field]: e.target.value })) },
         }),
         el('input', {
           type: 'text', style: { ...S.input, ...S.hex }, disabled,
-          value: current, placeholder: optional ? t('colorUnset') : '',
-          onChange: (e) => {
-            const next = e.target.value.trim()
-            if (next === '' && optional) write(field, '')
-            else if (HEX.test(next)) write(field, next)
-          },
+          value: text, placeholder: optional ? t('colorUnset') : '',
+          onChange: (e) => setHexDrafts((d) => ({ ...d, [field]: e.target.value })),
+          onBlur: () => commitHex(field, optional, typed()),
+          onKeyDown: (e) => { if (e.key === 'Enter') commitHex(field, optional, typed()) },
         }),
         optional && current !== ''
-          ? el(Button, { variant: 'ghost', size: 'sm', disabled, onClick: () => write(field, '') }, t('colorReset'))
+          ? el(Button, { variant: 'ghost', size: 'sm', disabled, onClick: () => { write(field, ''); setHexDrafts((d) => ({ ...d, [field]: '' })) } }, t('colorReset'))
           : null,
       ),
       hintKey ? el('div', { style: S.hint }, t(hintKey)) : null,
