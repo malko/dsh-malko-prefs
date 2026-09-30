@@ -29,7 +29,7 @@ page, and **tab notifications**, packaged as a single dsh bundle.
 
 - **dsh ≥ `0.1.7-rc.1`** — built on the current settings domain (`Config`
   fields marked `.volatile()` on the Host, `ctx.configForms` on the Client) and
-  on `BasicCompactionEngine`.
+  on `BasicCompactionEngine`. Tested on `0.1.7-rc.2` and `0.2.0-rc.2`.
 - A working `llm-pi-ai` provider (e.g. your llama.cpp server) for the model
   enrichment.
 
@@ -158,8 +158,9 @@ selected by `prefers-color-scheme`).
 **System notifications** — a browser notification on session completion or on a
 new pending interaction, with the session name as the title. Defaults to only
 firing when the tab is not in the foreground (visible **and** focused); enable
-**Notify in the foreground** to also fire while you watch, and **Keep on
-screen** to stop the notification from auto-hiding. Enabling notifications asks
+**Notify in the foreground** to also fire while you watch, and one of the two
+per-type **Keep on screen** toggles (finished / waiting) to stop that
+notification from auto-hiding. Enabling notifications asks
 the browser for permission once.
 
 **Sound** — two selectors (finished / waiting), each defaulting to **No sound**.
@@ -178,7 +179,8 @@ until you have interacted with the page at least once.
 | Finished / Waiting / Working / Idle color | `green` / `amber` / `working` / `black` | official sidebar colors for green/amber, blue for working; `black` empty = official favicon |
 | Enable notifications | `notifyEnabled` | **off** |
 | Notify in the foreground | `notifyForeground` | off |
-| Keep on screen | `notifyPersistent` | off (auto-hide) |
+| Keep finished on screen | `notifyDonePersistent` | off (auto-hide) |
+| Keep waiting on screen | `notifyPendingPersistent` | off (auto-hide) |
 | Volume | `notifyVolume` | `0.6` |
 | Sound on finished / waiting | `notifyDoneSound` / `notifyPendingSound` | `none` (silent) |
 
