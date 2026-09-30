@@ -10,6 +10,37 @@
  */
 import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 
+/** A credential reference name (e.g. `LLAMA_API_KEY`) — the dsh grammar. */
+const CREDENTIAL_REF = /^[A-Za-z_][A-Za-z0-9_]*$/
+
+/**
+ * Resolve a provider's api-key credential reference: the dsh credentials
+ * service first (managed store / .env / launch environment), then the host
+ * process environment as a fallback. Returns undefined when unset.
+ * The reference is a plain string (dsh brands it without changing the value).
+ * @param {object} ctx context carrying the optional `credentials` service.
+ * @param {unknown} ref credential reference name (e.g. `LLAMA_API_KEY`).
+ * @returns {Promise<string | undefined>}
+ */
+async function resolveApiKey(ctx, ref) {
+  if (typeof ref !== 'string' || !CREDENTIAL_REF.test(ref)) return undefined
+  try {
+    const credentials = ctx.get('credentials')
+    if (typeof credentials?.resolve === 'function') {
+      const hit = await credentials.resolve(ref)
+      if (hit !== undefined && typeof hit.value === 'string' && hit.value !== '') return hit.value
+    }
+  } catch {
+    /* fall through to the environment */
+  }
+  try {
+    const value = process.env[ref]
+    return typeof value === 'string' && value !== '' ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /** First finite positive integer among the candidates. */
 function pickInt(...values) {
   for (const value of values) {
@@ -77,9 +108,12 @@ export class MalkoModelsRuntime extends TypertRemoteService {
     }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('probe: baseURL must be http(s)')
     const endpoint = `${base}/models`
+    const headers = { accept: 'application/json' }
+    const apiKey = await resolveApiKey(this.ctx, args?.apiKeyEnv)
+    if (apiKey !== undefined) headers.authorization = `Bearer ${apiKey}`
     let response
     try {
-      response = await fetch(endpoint, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(15000) })
+      response = await fetch(endpoint, { headers, signal: AbortSignal.timeout(15000) })
     } catch (error) {
       throw new Error(`probe: could not reach ${endpoint} (${error?.message ?? error})`)
     }

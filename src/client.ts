@@ -468,7 +468,10 @@ function PrefsSection(props) {
     setEnrichNote('')
     setPreview(null)
     try {
-      const response = await probe({ baseURL: profile.baseURL })
+      const response = await probe({
+        baseURL: profile.baseURL,
+        ...(typeof profile.apiKeyEnv === 'string' && profile.apiKeyEnv !== '' ? { apiKeyEnv: profile.apiKeyEnv } : {}),
+      })
       const found = Array.isArray(response?.models) ? response.models : []
       const existing = Array.isArray(profile.models) ? profile.models : []
       const byId = new Map(existing.map((m) => [m.id, m]))

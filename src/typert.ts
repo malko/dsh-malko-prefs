@@ -13,7 +13,7 @@ let probeArgsSchema$value
 /** Invocation args: the provider endpoint to interrogate. */
 const probeArgsSchema = () => (probeArgsSchema$value ??= z.object({
   baseURL: z.string(),
-  api: z.string().optional(),
+  apiKeyEnv: z.string().optional(),
 }))
 
 let candidateSchema$value
