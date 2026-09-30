@@ -278,15 +278,28 @@ export function startStatusLight(ctx, form) {
     return key === undefined ? undefined : t(key)
   }
 
-  /** Queue one notification (skipped while disabled; deduped; 300 ms window). */
-  function queueNotification(kind, sessionId, label, typeLabel, durationMs) {
-    const config = readConfig()
-    if (!config.notifyEnabled) return
-    if (kind === 'done' && !config.doneEnabled) return
-    if (kind === 'pending' && !config.pendingEnabled) return
+  /**
+   * Handle one session event (once per deduped edge): play the chosen sound
+   * (independent of the notification switches) and, when notifications for
+   * this type are on, enqueue the banner.
+   * @param kind - `'done'` | `'pending'`.
+   * @param sessionId - the session the event belongs to.
+   * @param label - session display name (notification title).
+   * @param typeLabel - notification body for `pending`.
+   * @param durationMs - turn duration for `done`, when known.
+   */
+  function emitEvent(kind, sessionId, label, typeLabel, durationMs) {
     const key = sessionId + ':' + kind
     if (notified.has(key)) return
     notified.add(key)
+    const config = readConfig()
+    // Sound is decoupled: whenever one is configured for this type it plays,
+    // regardless of whether the banner is enabled.
+    const soundId = kind === 'done' ? config.doneSound : config.pendingSound
+    if (soundId !== SOUND_NONE) playSound(soundId, config.volume, kind)
+    if (!config.notifyEnabled) return
+    if (kind === 'done' && !config.doneEnabled) return
+    if (kind === 'pending' && !config.pendingEnabled) return
     notifyQueue.set(key, { kind, sessionId, label, typeLabel, durationMs })
     if (notifyTimer === undefined) notifyTimer = setTimeout(flushNotifications, 300)
   }
@@ -324,7 +337,6 @@ export function startStatusLight(ctx, form) {
           icon: uri(kind === 'done' ? config.green : config.amber),
           requireInteraction: kind === 'done' ? config.donePersistent : config.pendingPersistent,
         })
-        playSound(kind === 'done' ? config.doneSound : config.pendingSound, config.volume, kind)
         notification.onclick = () => {
           try { window.focus() } catch { /* ignore */ }
           try {
@@ -356,7 +368,7 @@ export function startStatusLight(ctx, form) {
       if (row.origin === 'subagent') continue
       const before = prevCompleted.get(row.id)
       const now = row.completed === true
-      if (before === false && now) queueNotification('done', row.id, row.displayTitle ?? row.title ?? row.id, undefined, lastRunMs.get(row.id))
+      if (before === false && now) emitEvent('done', row.id, row.displayTitle ?? row.title ?? row.id, undefined, lastRunMs.get(row.id))
       if (!now) notified.delete(row.id + ':done')
       prevCompleted.set(row.id, now)
     }
@@ -371,7 +383,7 @@ export function startStatusLight(ctx, form) {
         const row = state.byId[id]
         if (row !== undefined && row.origin === 'subagent') continue
         const label = row?.displayTitle ?? row?.title ?? id
-        queueNotification('pending', id, label, pendingTypeLabel(row?.pendingInteraction))
+        emitEvent('pending', id, label, pendingTypeLabel(row?.pendingInteraction))
       }
     }
     for (const id of prevPending) if (!current.has(id)) notified.delete(id + ':pending')
@@ -394,7 +406,7 @@ export function startStatusLight(ctx, form) {
         runStartedAt.delete(row.id)
         if (elapsed !== undefined) lastRunMs.set(row.id, elapsed)
         if (row.id === state.current && !isForeground()) finishedWhileHidden.add(row.id)
-        if (row.id === state.current) queueNotification('done', row.id, row.displayTitle ?? row.title ?? row.id, undefined, elapsed)
+        if (row.id === state.current) emitEvent('done', row.id, row.displayTitle ?? row.title ?? row.id, undefined, elapsed)
       } else if (row.running) finishedWhileHidden.delete(row.id)
       prevRunning.set(row.id, row.running)
     }

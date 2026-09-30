@@ -111,7 +111,7 @@ const en = {
   colorReset: 'Clear',
   colorUnset: 'official',
   notifyGroup: 'System notifications',
-  notifyIntro: 'Raise a browser notification when a session finishes or a question/approval waits for you.',
+  notifyIntro: 'Banners use the switches below. A chosen sound always plays on its event, even when notifications are off.',
   notifyEnabled: 'Enable notifications',
   notifyEnabledHint: 'The browser asks for permission the first time you enable this.',
   notifyForeground: 'Notify in the foreground',
@@ -126,6 +126,7 @@ const en = {
   persistPending: 'Keep on screen',
   persistHint: 'On: the notification stays until you dismiss it (if the OS honors it).',
   sound: 'Sound',
+  soundHint: 'Plays on the event even when notifications are off.',
   notifyVolume: 'Volume',
   soundDone: 'On session finished',
   soundPending: 'While waiting for you',
@@ -222,7 +223,7 @@ const zh = {
   colorReset: '\u6e05\u9664',
   colorUnset: '\u5b98\u65b9',
   notifyGroup: '\u7cfb\u7edf\u901a\u77e5',
-  notifyIntro: '\u4f1a\u8bdd\u5b8c\u6210\u6216\u6709\u63d0\u95ee/\u5ba1\u6279\u7b49\u4f60\u5904\u7406\u65f6\u53d1\u9001\u6d4f\u89c8\u5668\u901a\u77e5\u3002',
+  notifyIntro: '\u5f39\u7a97\u7531\u4e0b\u65b9\u5f00\u5173\u63a7\u5236\uff1b\u9009\u62e9\u63d0\u793a\u97f3\u540e\uff0c\u5373\u4f7f\u5173\u95ed\u901a\u77e5\u4e5f\u4f1a\u5728\u4e8b\u4ef6\u53d1\u751f\u65f6\u64ad\u653e\u3002',
   notifyEnabled: '\u542f\u7528\u901a\u77e5',
   notifyEnabledHint: '\u9996\u6b21\u5f00\u542f\u65f6\u6d4f\u89c8\u5668\u4f1a\u8be2\u95ee\u6388\u6743\u3002',
   notifyForeground: '\u524d\u53f0\u63d0\u9192',
@@ -237,6 +238,7 @@ const zh = {
   persistPending: '\u5e38\u9a7b\u5c4f\u5e55',
   persistHint: '\u5f00\u542f\u540e\u9700\u624b\u52a8\u5173\u95ed\u624d\u4f1a\u6d88\u5931\uff08\u53d7\u7cfb\u7edf\u652f\u6301\u9650\u5236\uff09\u3002',
   sound: '\u63d0\u793a\u97f3',
+  soundHint: '\u5373\u4f7f\u5173\u95ed\u901a\u77e5\uff0c\u4e8b\u4ef6\u53d1\u751f\u65f6\u4e5f\u4f1a\u64ad\u653e\u3002',
   notifyVolume: '\u97f3\u91cf',
   soundDone: '\u4f1a\u8bdd\u5b8c\u6210\u65f6',
   soundPending: '\u7b49\u4f60\u5904\u7406\u65f6',
@@ -701,6 +703,7 @@ function PrefsSection(props) {
         if (id !== SOUND_NONE) playSound(id, volumeNow, kind)
       },
     }, soundSelectOptions()),
+    el('div', { style: S.hint }, t('soundHint')),
   )
 
   const notificationsEnabled = value.notifyEnabled !== undefined ? !!value.notifyEnabled : false
