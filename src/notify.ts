@@ -211,7 +211,8 @@ export function startStatusLight(ctx, form) {
       black: HEX.test(value.black) ? value.black : undefined,
       notifyEnabled: value.notifyEnabled === true,
       notifyForeground: value.notifyForeground === true,
-      persistent: value.notifyPersistent === true,
+      donePersistent: value.notifyDonePersistent === true,
+      pendingPersistent: value.notifyPendingPersistent === true,
       volume: normalizeVolume(value.notifyVolume ?? 0.6),
       doneSound: typeof value.notifyDoneSound === 'string' ? value.notifyDoneSound : SOUND_NONE,
       pendingSound: typeof value.notifyPendingSound === 'string' ? value.notifyPendingSound : SOUND_NONE,
@@ -316,7 +317,7 @@ export function startStatusLight(ctx, form) {
         const notification = new Notification(title, {
           body,
           icon: uri(kind === 'done' ? config.green : config.amber),
-          requireInteraction: config.persistent,
+          requireInteraction: kind === 'done' ? config.donePersistent : config.pendingPersistent,
         })
         playSound(kind === 'done' ? config.doneSound : config.pendingSound, config.volume, kind)
         notification.onclick = () => {

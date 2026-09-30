@@ -53,8 +53,10 @@ export const DEFAULT_PREFS = {
   notifyEnabled: false,
   /** Also notify while the page is in the foreground. */
   notifyForeground: false,
-  /** Keep the notification on screen until dismissed (vs. auto-hide). */
-  notifyPersistent: false,
+  /** Keep the finished notification on screen until dismissed (vs. auto-hide). */
+  notifyDonePersistent: false,
+  /** Keep the waiting notification on screen until dismissed (vs. auto-hide). */
+  notifyPendingPersistent: false,
   /** Notification sound volume, 0–1. */
   notifyVolume: 0.6,
   /** Sound id played on completion (`none` = silent). */
