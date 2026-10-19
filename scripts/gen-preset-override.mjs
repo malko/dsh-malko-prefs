@@ -20,6 +20,7 @@
  * location inside the global dsh install on this machine.
  */
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 
 const PACKAGE = 'dsh-malko-prefs'
@@ -38,21 +39,34 @@ function findOnPath(name) {
   return undefined
 }
 
+/** Every plausible `@deepseek-ai/dsh-web-app/presets` location for this machine. */
+function* presetCandidates() {
+  // `dsh` on PATH (`dsh` → `@deepseek-ai/dsh/lib/bin.js`).
+  const bin = findOnPath(process.platform === 'win32' ? 'dsh.cmd' : 'dsh')
+  if (bin !== undefined) {
+    try {
+      const dshPackage = dirname(dirname(realpathSync(bin)))
+      yield join(dshPackage, 'node_modules', '@deepseek-ai', 'dsh-web-app', 'presets')
+    } catch { /* fall through */ }
+  }
+  // The running Node installation (nvm, system): <prefix>/lib/node_modules.
+  const prefix = dirname(dirname(process.execPath))
+  yield join(prefix, 'lib', 'node_modules', '@deepseek-ai', 'dsh', 'node_modules', '@deepseek-ai', 'dsh-web-app', 'presets')
+  yield join(prefix, 'lib', 'node_modules', '@deepseek-ai', 'dsh-web-app', 'presets')
+  // The profile layer links the installed dsh packages even when dsh is not on PATH.
+  const dshHome = process.env.DSH_HOME ?? join(homedir(), '.dsh')
+  yield join(dshHome, 'profiles', 'node_modules', '@deepseek-ai', 'dsh-web-app', 'presets')
+}
+
 /**
- * Locate the dsh install's `@deepseek-ai/dsh-web-app/presets` directory by
- * resolving the `dsh` executable on PATH (`dsh` → `@deepseek-ai/dsh/lib/bin.js`).
+ * Locate the dsh install's `@deepseek-ai/dsh-web-app/presets` directory.
  * @returns {string | undefined}
  */
 function discoverPresetsDir() {
   if (process.env.DSH_PRESETS_DIR !== undefined) return process.env.DSH_PRESETS_DIR
-  const bin = findOnPath(process.platform === 'win32' ? 'dsh.cmd' : 'dsh')
-  if (bin === undefined) return undefined
-  try {
-    const real = realpathSync(bin)
-    const dshPackage = dirname(dirname(real))
-    const presets = join(dshPackage, 'node_modules', '@deepseek-ai', 'dsh-web-app', 'presets')
-    if (existsSync(presets)) return presets
-  } catch { /* fall through */ }
+  for (const candidate of presetCandidates()) {
+    if (existsSync(candidate)) return candidate
+  }
   return undefined
 }
 
