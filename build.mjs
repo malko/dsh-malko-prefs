@@ -2,7 +2,7 @@
 // dsh's runtime resolution), client half as a CJS bundle wrapped in the
 // window.__ModuleLoader__ shell.
 import { build } from 'esbuild'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 
 mkdirSync('lib', { recursive: true })
 
@@ -21,7 +21,11 @@ async function hostBundle(entry, outfile) {
 
 await hostBundle('src/index.ts', 'lib/index.mjs')
 await hostBundle('src/compaction.ts', 'lib/compaction.mjs')
+await hostBundle('src/preset.ts', 'lib/preset.mjs')
 await hostBundle('src/typert.host.ts', 'lib/typert.host.mjs')
+// CommonJS on purpose: a `!!js` expression in cordis.patch.yml requires it
+// synchronously, before the Loader mounts the agent preset.
+copyFileSync('src/preset-config.cjs', 'lib/preset-config.cjs')
 
 const clientBuild = await build({
   entryPoints: ['src/client.ts'],
@@ -49,4 +53,4 @@ writeFileSync(
   ].join('\n'),
 )
 
-console.log('built dsh-malko-prefs (lib/index.mjs + lib/compaction.mjs + lib/typert.host.mjs + lib/client.js)')
+console.log('built dsh-malko-prefs (lib/index.mjs + lib/compaction.mjs + lib/preset.mjs + lib/typert.host.mjs + lib/preset-config.cjs + lib/client.js)')

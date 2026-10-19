@@ -2,8 +2,12 @@
  * Static conformance checks for this bundle (no dsh boot required).
  * Run: node scripts/check.mjs
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { homedir } from 'node:os'
+import { delimiter, dirname, join } from 'node:path'
 
+const require = createRequire(import.meta.url)
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
 let failed = 0
 const check = (name, ok, detail = '') => {
@@ -15,11 +19,13 @@ check('package name', pkg.name === 'dsh-malko-prefs', pkg.name)
 check('exports ./compaction', typeof (pkg.exports?.['./compaction']?.default) === 'string')
 check('exports ./client', typeof (pkg.exports?.['./client']?.default) === 'string')
 check('exports ./typert', typeof (pkg.exports?.['./typert']?.default) === 'string')
+check('exports ./preset', typeof (pkg.exports?.['./preset']?.default) === 'string')
+check('exports ./preset-config', typeof (pkg.exports?.['./preset-config']?.default) === 'string')
 check('exports ./package.json', pkg.exports?.['./package.json'] !== undefined)
 check('dsh.bundle.patch', pkg.dsh?.bundle?.patch === './cordis.patch.yml')
 check('dsh.client.platform web', pkg.dsh?.client?.platform === 'web')
 
-for (const file of ['lib/index.mjs', 'lib/compaction.mjs', 'lib/typert.host.mjs', 'lib/client.js', 'cordis.patch.yml']) {
+for (const file of ['lib/index.mjs', 'lib/compaction.mjs', 'lib/preset.mjs', 'lib/typert.host.mjs', 'lib/preset-config.cjs', 'lib/client.js', 'cordis.patch.yml']) {
   check(`built: ${file}`, existsSync(file))
 }
 
@@ -50,15 +56,99 @@ check(
     ),
 )
 
+/** First `name` executable found on `PATH`. */
+function findOnPath(name) {
+  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
+    if (dir === '') continue
+    const candidate = join(dir, name)
+    try {
+      if (statSync(candidate).isFile() || statSync(candidate).isSymbolicLink()) return candidate
+    } catch { /* not here */ }
+  }
+  return undefined
+}
+
+/** A `package.json` whose directory resolves the running dsh packages. */
+function discoverDshBase() {
+  if (process.env.DSH_PRESETS_DIR !== undefined) {
+    // <...>/node_modules/@deepseek-ai/dsh-web-app/presets
+    return join(dirname(dirname(dirname(process.env.DSH_PRESETS_DIR))), 'package.json')
+  }
+  const bin = findOnPath(process.platform === 'win32' ? 'dsh.cmd' : 'dsh')
+  if (bin !== undefined) {
+    try {
+      return join(dirname(dirname(realpathSync(bin))), 'package.json')
+    } catch { /* fall through */ }
+  }
+  const home = process.env.DSH_HOME ?? join(homedir(), '.dsh')
+  const profile = join(home, 'profiles', 'web', 'package.json')
+  if (existsSync(profile)) return profile
+  const linked = join(home, 'profiles', 'node_modules', '@deepseek-ai', 'dsh-web-app', 'package.json')
+  if (existsSync(linked)) return linked
+  return undefined
+}
+
+/** Whether the running dsh still registers the old `{{cwd}}` prompt variable. */
+function dshRegistersCwd(base) {
+  try {
+    const req = createRequire(base)
+    const loop = join(dirname(req.resolve('@deepseek-ai/dsh-agent-loop/package.json')), 'lib', 'index.js')
+    return readFileSync(loop, 'utf8').includes('systemPrompt.variable("cwd"')
+  } catch {
+    // Unknown dsh: do not turn a permissive check into a false failure.
+    return true
+  }
+}
+
+const presetPlugin = await import('../lib/preset.mjs')
+check(
+  'preset wrapper exports a plugin',
+  typeof presetPlugin.default === 'function'
+    && Array.isArray(presetPlugin.inject)
+    && presetPlugin.inject.includes('agentPresets')
+    && presetPlugin.Config !== undefined,
+)
+
 const patch = readFileSync('cordis.patch.yml', 'utf8')
 check('patch inserts host row', /- insert:\n {4}- id: malko-prefs\n {6}name: 'dsh-malko-prefs'/.test(patch))
-const engineRefs = (patch.match(/name: 'dsh-malko-prefs\/compaction'/g) ?? []).length
-const presetCount = (patch.match(/^- id: preset-/gm) ?? []).length
-check('every preset swapped to our engine', engineRefs === presetCount && presetCount > 0, `engineRefs=${engineRefs} presets=${presetCount}`)
-check('no official compaction-basic left in patch', !patch.includes(`name: '@deepseek-ai/dsh-compaction-basic'`))
-// dsh no longer registers `cwd` as a prompt variable (dropped in 0.2.1-rc.1);
-// the working-directory service supplies it as runtime context instead.
-check('no removed {{cwd}} prompt variable in patch', !patch.includes('{{cwd}}'))
+
+const presetConfig = require('../lib/preset-config.cjs')
+const PRESET_IDS = presetConfig.PRESET_IDS
+for (const id of PRESET_IDS) {
+  check(
+    `patch dynamically overrides preset ${id}`,
+    patch.includes(`- id: preset-${id}\n  name: 'dsh-malko-prefs/preset'\n`)
+      && patch.includes(`preset-config')('${id}', baseUrl`),
+  )
+}
+
+const dshBase = discoverDshBase()
+check('dsh install found for preset checks', dshBase !== undefined, dshBase ?? 'install dsh or set DSH_PRESETS_DIR')
+if (dshBase !== undefined) {
+  const registersCwd = dshRegistersCwd(dshBase)
+  for (const id of PRESET_IDS) {
+    try {
+      const config = presetConfig(id, dshBase, { baseUrl: dshBase, get: () => undefined })
+      const serialized = JSON.stringify(config)
+      const raw = JSON.stringify(presetConfig.loadPreset(id, dshBase))
+      const upstreamEngines = (raw.match(/@deepseek-ai\/dsh-compaction-basic/g) ?? []).length
+      const engines = (serialized.match(/dsh-malko-prefs\/compaction/g) ?? []).length
+      const official = (serialized.match(/@deepseek-ai\/dsh-compaction-basic/g) ?? []).length
+      check(`preset ${id}: composes`, config?.id === id && Array.isArray(config.plugins), `id=${config?.id}`)
+      check(
+        `preset ${id}: engine swapped`,
+        engines === upstreamEngines && official === 0,
+        `engines=${engines} upstream=${upstreamEngines} official=${official}`,
+      )
+      check(`preset ${id}: expressions evaluated`, !serialized.includes('__jsExpr'))
+      // dsh dropped `cwd` as a prompt variable in 0.2.1-rc.1; the
+      // working-directory service supplies it as runtime context instead.
+      if (!registersCwd) check(`preset ${id}: no removed {{cwd}}`, !serialized.includes('{{cwd}}'))
+    } catch (error) {
+      check(`preset ${id}: readable`, false, error.message)
+    }
+  }
+}
 
 // Cache safety: the summarization instruction must be appended AFTER the
 // replayed prefix (system+tools+history), never before — otherwise the warm

@@ -4,8 +4,9 @@
 > (OpenCode, `deepseek-v4.1-flash`) from natural-language prompts, with light
 > human review and testing. It is not a carefully hand-engineered product:
 > read the code before trusting it, expect rough edges, and check what it
-> changes in your dsh profile — in particular it **restates your agent presets**
-> (see [Install](#install)). Use at your own risk.
+> changes in your dsh profile — in particular it **overrides your agent presets
+> with a retargeted copy of the installed ones** (see [Install](#install)). Use
+> at your own risk.
 
 Personal preferences for DeepSeek Harness (dsh): a **tunable companion to the
 official compaction engine**, a **llama.cpp model enrichment** for the Models
@@ -55,26 +56,44 @@ The bundle layer does two things (see `cordis.patch.yml`):
    `malkoModels` probe Service, whose strict Typert wire definition is
    contributed through the package `./typert` export that
    `@deepseek-ai/dsh-typert-loader` registers automatically on mount;
-2. restates every shipped agent preset (`preset-cordis`, `preset-ptc`,
-   `preset-standard`) with the official `compaction-basic` row retargeted at
-   `dsh-malko-prefs/compaction`.
+2. overrides every shipped agent preset (`preset-cordis`, `preset-minimal`,
+   `preset-ptc`, `preset-standard`) with the **preset the installed dsh
+   actually ships**, retargeted at `dsh-malko-prefs/compaction`.
 
-> This second point is why the file is **generated**, not hand-written: a patch
-> replaces a row's `config` wholesale and the compaction backend lives nested
-> inside the preset, so swapping it means copying the whole preset. Regenerate
-> it after a dsh upgrade that touches the presets:
->
-> ```
-> node scripts/gen-preset-override.mjs                 # auto-detects dsh on PATH
-> node scripts/gen-preset-override.mjs <presets-dir>   # or pass it explicitly
-> DSH_PRESETS_DIR=<presets-dir> node scripts/gen-preset-override.mjs
-> ```
->
-> The generated `cordis.patch.yml` is tied to the preset composition of the dsh
-> version it was generated against — the plugin targets whichever dsh ships
-> those presets (declared through its optional `peerDependencies`).
+A patch replaces a preset row's `config` wholesale, and the compaction backend
+lives nested inside the preset, so the whole preset must be supplied. Instead
+of freezing a copy, `cordis.patch.yml` asks `dsh-malko-prefs/preset-config` for
+the body at load time:
+
+```yaml
+- id: preset-standard
+  name: 'dsh-malko-prefs/preset'
+  config: !!js process.getBuiltinModule('node:module').createRequire(baseUrl)('dsh-malko-prefs/preset-config')('standard', baseUrl, ctx)
+```
+
+`dsh-malko-prefs/preset` is a small wrapper around the upstream
+`@deepseek-ai/dsh-agent-preset`: the upstream row is an `EntryGroup`, so the
+Loader deliberately skips interpolation of its `config`; the wrapper is an
+ordinary plugin, so the computed config is evaluated and then registered with
+the same `agentPresets.register()` call.
+
+`src/preset-config.cjs` locates
+`@deepseek-ai/dsh-web-app/presets/<id>.patch.yml` in the running dsh, parses it
+with the Loader's YAML dialect (so `!!js` nodes survive), evaluates those nodes
+against the Loader context (they drive `disabled` rows and `customSkillDirs`),
+and swaps `@deepseek-ai/dsh-compaction-basic` for
+`dsh-malko-prefs/compaction`. The plugin therefore follows the installed dsh
+version instead of requiring a regeneration after every upgrade.
 
 Rollback: `dsh plugin --profile web remove dsh-malko-prefs` (then restart).
+
+### Compatibility
+
+One release supports every dsh that ships
+`@deepseek-ai/dsh-web-app/presets/{cordis,minimal,ptc,standard}.patch.yml`
+(currently `0.1.7-rc.1` and later). Because the preset bodies are read from the
+running dsh, a dsh upgrade changes them without a plugin release; `engines.dsh`
+declares the lower bound. There is no separate “old dsh” package line.
 
 ## Settings — “Malko's prefs”
 
@@ -254,8 +273,9 @@ node scripts/check.mjs    # static conformance checks
 | `src/notify.ts` | tab status light + notifications + sound player (ported from dsh-notice-center) |
 | `assets/audio/` | 45 bundled notification sounds (opencode, MIT) |
 | `src/whale.ts` | the recolored official whale SVG used as the tab icon |
-| `scripts/gen-preset-override.mjs` | regenerates `cordis.patch.yml` from the installed presets |
-| `scripts/check.mjs` | manifest / bundle / cache-safety checks |
+| `src/preset.ts` | ordinary-plugin wrapper that registers a computed preset with `agentPresets` |
+| `src/preset-config.cjs` | builds each agent preset from the installed dsh presets and swaps the compaction engine |
+| `scripts/check.mjs` | manifest / bundle / preset / cache-safety checks |
 
 ## Publishing
 
@@ -270,14 +290,17 @@ The package is publication-ready:
   `@deepseek-ai/dsh-client-ui-primitives`).
 - The name is free on npmjs.com; release with `npm publish` (unscoped/public).
 
-Caveat: `cordis.patch.yml` is generated from the shipped presets, so regenerate
-it against the dsh version you target and keep the `peerDependencies` ranges in
-sync before publishing.
+Caveat: `engines.dsh` declares the supported dsh range. The preset bodies are
+read from the installed dsh at load time, so the plugin follows preset content
+changes automatically; only a new preset **id** requires adding a row to
+`cordis.patch.yml` and `src/preset-config.cjs`.
 
 ## Limits
 
-- The generated `cordis.patch.yml` copies the shipped presets; re-run
-  `gen-preset-override.mjs` after a dsh upgrade.
+- The preset retarget reads `@deepseek-ai/dsh-web-app/presets/*.patch.yml`
+  through the dsh install and uses `js-yaml`; a future dsh that moves or
+  reformats those files will fail loudly at preset mount instead of silently
+  mounting a stale copy.
 - The `/force-compact` busy path uses the engine's context-overflow entry,
   which compacts the maximal safe head (retention 0).
 - The model enrichment is host-side (the browser cannot reach a local

@@ -8,8 +8,8 @@
  *
  * The engine itself (`./compaction`) is a separate entry in this same package:
  * a patch replaces a row's config wholesale and the compaction backend lives
- * nested inside the preset, so swapping it requires restating the preset —
- * see `scripts/gen-preset-override.mjs`.
+ * nested inside the preset, so the patch asks `./preset-config` for a copy of
+ * the installed preset with the engine swapped.
  */
 import { Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
