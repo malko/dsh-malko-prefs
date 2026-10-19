@@ -56,6 +56,9 @@ const engineRefs = (patch.match(/name: 'dsh-malko-prefs\/compaction'/g) ?? []).l
 const presetCount = (patch.match(/^- id: preset-/gm) ?? []).length
 check('every preset swapped to our engine', engineRefs === presetCount && presetCount > 0, `engineRefs=${engineRefs} presets=${presetCount}`)
 check('no official compaction-basic left in patch', !patch.includes(`name: '@deepseek-ai/dsh-compaction-basic'`))
+// dsh no longer registers `cwd` as a prompt variable (dropped in 0.2.1-rc.1);
+// the working-directory service supplies it as runtime context instead.
+check('no removed {{cwd}} prompt variable in patch', !patch.includes('{{cwd}}'))
 
 // Cache safety: the summarization instruction must be appended AFTER the
 // replayed prefix (system+tools+history), never before — otherwise the warm
